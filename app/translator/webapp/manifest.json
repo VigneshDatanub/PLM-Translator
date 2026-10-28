@@ -1,0 +1,101 @@
+{
+    "_version": "1.65.0",
+    "sap.app": {
+        "id": "plm.translator.app",
+        "type": "application",
+        "title": "PLM Translator",
+        "description": "PLM Translation Tool powered by Google Cloud Translation API",
+        "applicationVersion": {
+            "version": "1.0.0"
+        },
+        "dataSources": {
+            "translatorService": {
+                "uri": "/api/",
+                "type": "OData",
+                "settings": {
+                    "odataVersion": "4.0"
+                }
+            }
+        }
+    },
+    "sap.ui5": {
+        "rootView": {
+            "viewName": "plm.translator.app.view.App",
+            "type": "XML",
+            "id": "app"
+        },
+        "models": {
+            "": {
+                "dataSource": "translatorService",
+                "settings": {
+                    "operationMode": "Server",
+                    "synchronizationMode": "None",
+                    "autoExpandSelect": true
+                }
+            },
+            "appModel": {
+                "type": "sap.ui.model.json.JSONModel",
+                "settings": {
+                    "data": {
+                        "languages": [],
+                        "translationResult": null,
+                        "busy": false,
+                        "massTranslationResult": null,
+                        "userInfo": {}
+                    }
+                }
+            }
+        },
+        "routing": {
+            "config": {
+                "routerClass": "sap.m.routing.Router",
+                "viewType": "XML",
+                "viewPath": "plm.translator.app.view",
+                "controlId": "appContainer",
+                "controlAggregation": "pages",
+                "async": true
+            },
+            "routes": [
+                {
+                    "name": "translator",
+                    "pattern": "",
+                    "target": "translator"
+                },
+                {
+                    "name": "massTranslation",
+                    "pattern": "mass-translation",
+                    "target": "massTranslation"
+                },
+                {
+                    "name": "testResults",
+                    "pattern": "test-results",
+                    "target": "testResults"
+                }
+            ],
+            "targets": {
+                "translator": {
+                    "viewName": "Translator",
+                    "viewLevel": 1
+                },
+                "massTranslation": {
+                    "viewName": "MassTranslation",
+                    "viewLevel": 2
+                },
+                "testResults": {
+                    "viewName": "TestResults",
+                    "viewLevel": 3
+                }
+            }
+        },
+        "dependencies": {
+            "minUI5Version": "1.120.0",
+            "libs": {
+                "sap.m": {},
+                "sap.ui.core": {},
+                "sap.ui.layout": {},
+                "sap.ui.unified": {},
+                "sap.ui.table": {}
+            }
+        }
+    }
+}

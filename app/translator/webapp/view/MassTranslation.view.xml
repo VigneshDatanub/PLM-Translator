@@ -1,0 +1,177 @@
+<mvc:View
+    controllerName="plm.translator.app.controller.MassTranslation"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:u="sap.ui.unified"
+    xmlns:layout="sap.ui.layout"
+    xmlns:core="sap.ui.core">
+
+    <Page showHeader="false" enableScrolling="true" class="sapUiContentPadding">
+        <content>
+            <!-- Banner Header -->
+            <VBox class="plmHeaderBanner sapUiSmallMarginBottom">
+                <Title text="Mass Translation via Excel" level="H2"/>
+                <Text text="Upload an Excel workbook containing multiple text entries, choose target languages, and batch translate with automatic database logging."/>
+            </VBox>
+
+            <!-- Configuration & Upload Card -->
+            <VBox class="plmCard sapUiSmallMarginBottom">
+                <Toolbar>
+                    <core:Icon src="sap-icon://excel-attachment" class="sapUiTinyMarginEnd"/>
+                    <Title text="Batch Configuration &amp; File Upload" level="H4"/>
+                    <ToolbarSpacer/>
+                    <Button
+                        id="btnDownloadTemplateHeader"
+                        text="Download Template (.xlsx)"
+                        icon="sap-icon://download"
+                        type="Emphasized"
+                        press=".onDownloadTemplate"/>
+                </Toolbar>
+
+                <VBox class="sapUiMediumMargin">
+                    <!-- Informational Banner for Template -->
+                    <MessageStrip
+                        text="Need the pre-formatted Excel structure? Click 'Download Template (.xlsx)' above or use the link below."
+                        type="Information"
+                        showIcon="true"
+                        class="sapUiSmallMarginBottom"/>
+
+                    <layout:Grid defaultSpan="XL6 L6 M12 S12">
+
+                        <!-- Left Side: File Upload & Tester -->
+                        <VBox>
+                            <HBox justifyContent="SpaceBetween" alignItems="Center" class="sapUiTinyMarginBottom">
+                                <Label text="Excel File (.xlsx, .xls):" required="true"/>
+                                <Link text="Download Blank Template (.xlsx)" icon="sap-icon://download" press=".onDownloadTemplate"/>
+                            </HBox>
+                            <HBox alignItems="Center">
+                                <u:FileUploader
+                                    id="excelFileUploader"
+                                    name="file"
+                                    uploadUrl="/api/upload-and-translate"
+                                    fileType="xlsx,xls"
+                                    mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                                    placeholder="Choose an Excel file..."
+                                    change=".onFileSelected"
+                                    width="100%"/>
+                            </HBox>
+                            <Text text="Tip: Standard column header is 'Text', 'Source Text', or 'Content'" class="sapUiTinyMarginTop"/>
+
+                            <Label text="Tested By / Evaluator:" required="true" class="sapUiSmallMarginTop sapUiTinyMarginBottom"/>
+                            <Input
+                                id="massTestedByInput"
+                                value="{appModel>/currentUser}"
+                                placeholder="Enter your name or user ID"/>
+                        </VBox>
+
+                        <!-- Right Side: Target Languages Multi-Selection -->
+                        <VBox>
+                            <HBox justifyContent="SpaceBetween" alignItems="Center" class="sapUiTinyMarginBottom">
+                                <Label text="Target Languages:" required="true"/>
+                                <HBox>
+                                    <Link text="Select Top 5" press=".onSelectTopLanguages" class="sapUiTinyMarginEnd"/>
+                                    <Link text="Clear All" press=".onClearLanguages"/>
+                                </HBox>
+                            </HBox>
+                            <MultiComboBox
+                                id="targetLanguagesMultiCombo"
+                                items="{path: 'appModel>/languages'}"
+                                width="100%"
+                                placeholder="Select one or more languages...">
+                                <core:Item key="{appModel>key}" text="{appModel>text}"/>
+                            </MultiComboBox>
+                            <Text text="You can select multiple languages to perform multi-target translations simultaneously." class="sapUiTinyMarginTop"/>
+                        </VBox>
+
+                    </layout:Grid>
+
+                    <!-- Execute Button -->
+                    <Toolbar height="4rem" class="sapUiSmallMarginTop">
+                        <ToolbarSpacer/>
+                        <Button
+                            id="btnUploadAndTranslate"
+                            text="Upload &amp; Start Mass Translation"
+                            icon="sap-icon://begin"
+                            type="Emphasized"
+                            press=".onUploadAndTranslate"/>
+                    </Toolbar>
+                </VBox>
+            </VBox>
+
+            <!-- Results Summary & Statistics (Visible after execution) -->
+            <VBox id="statsSection" visible="false" class="sapUiSmallMarginBottom">
+                <layout:Grid defaultSpan="XL3 L3 M6 S12">
+
+                    <!-- Total Rows KPI -->
+                    <VBox class="plmKpiCard">
+                        <Text id="kpiTotalRows" text="0" class="plmKpiValue plmKpiInfo"/>
+                        <Text text="Total Source Texts" class="plmKpiLabel"/>
+                    </VBox>
+
+                    <!-- Successful KPI -->
+                    <VBox class="plmKpiCard">
+                        <Text id="kpiSuccessful" text="0" class="plmKpiValue plmKpiSuccess"/>
+                        <Text text="Successful Translations" class="plmKpiLabel"/>
+                    </VBox>
+
+                    <!-- Failed KPI -->
+                    <VBox class="plmKpiCard">
+                        <Text id="kpiFailed" text="0" class="plmKpiValue plmKpiError"/>
+                        <Text text="Failed Rows" class="plmKpiLabel"/>
+                    </VBox>
+
+                    <!-- Success Rate KPI -->
+                    <VBox class="plmKpiCard">
+                        <Text id="kpiSuccessRate" text="100%" class="plmKpiValue plmKpiSuccess"/>
+                        <Text text="Success Rate" class="plmKpiLabel"/>
+                    </VBox>
+
+                </layout:Grid>
+            </VBox>
+
+            <!-- Results Data Table Card (Visible after execution) -->
+            <VBox id="resultsTableCard" visible="false" class="plmCard">
+                <Toolbar>
+                    <core:Icon src="sap-icon://table-view" class="sapUiTinyMarginEnd"/>
+                    <Title text="Session Translation Results" level="H4"/>
+                    <ToolbarSpacer/>
+                    <Button
+                        id="btnDownloadSessionExcel"
+                        text="Download Results (.xlsx)"
+                        icon="sap-icon://download"
+                        type="Emphasized"
+                        press=".onDownloadSessionResults"/>
+                </Toolbar>
+
+                <Table
+                    id="sessionResultsTable"
+                    items="{sessionModel>/results}"
+                    growing="true"
+                    growingThreshold="20"
+                    noDataText="No translation results generated yet">
+                    <columns>
+                        <Column width="5rem"><Text text="#"/></Column>
+                        <Column width="8rem"><Text text="Outcome"/></Column>
+                        <Column width="7rem"><Text text="Language"/></Column>
+                        <Column><Text text="Original Text"/></Column>
+                        <Column><Text text="Translated Text"/></Column>
+                    </columns>
+                    <items>
+                        <ColumnListItem>
+                            <cells>
+                                <Text text="{sessionModel>rowIndex}"/>
+                                <ObjectStatus
+                                    text="{sessionModel>outcome}"
+                                    state="{= ${sessionModel>outcome} === 'Success' ? 'Success' : 'Error' }"/>
+                                <Text text="{sessionModel>targetLanguage}"/>
+                                <Text text="{sessionModel>sourceText}"/>
+                                <Text text="{sessionModel>translatedText}"/>
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+                </Table>
+            </VBox>
+
+        </content>
+    </Page>
+</mvc:View>

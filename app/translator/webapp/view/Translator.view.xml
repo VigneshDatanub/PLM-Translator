@@ -1,0 +1,187 @@
+<mvc:View
+    controllerName="plm.translator.app.controller.Translator"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:layout="sap.ui.layout"
+    xmlns:core="sap.ui.core">
+
+    <Page showHeader="false" enableScrolling="true" class="sapUiContentPadding">
+        <content>
+            <!-- Banner Header -->
+            <VBox class="plmHeaderBanner sapUiSmallMarginBottom">
+                <Title text="Single Text Translation" level="H2"/>
+                <Text text="Translate text instantly with Google Cloud Translation API v2 and record test evaluations."/>
+            </VBox>
+
+            <!-- Main Layout: 2 Columns for Translation + Evaluation -->
+            <layout:Grid defaultSpan="XL6 L6 M12 S12" class="sapUiNoMarginTop">
+
+                <!-- Left Column: Source Text Panel -->
+                <VBox class="plmCard sapUiSmallMarginBottom">
+                    <Toolbar class="sapUiTinyMarginBottom">
+                        <core:Icon src="sap-icon://edit" class="sapUiTinyMarginEnd"/>
+                        <Title text="Source Text" level="H4"/>
+                        <ToolbarSpacer/>
+                        <Label text="Target Language:" class="sapUiTinyMarginEnd"/>
+                        <ComboBox
+                            id="targetLanguageSelect"
+                            selectedKey="de"
+                            items="{path: 'appModel>/languages'}"
+                            width="260px"
+                            showSecondaryValues="true"
+                            filterSecondaryValues="true"
+                            placeholder="Select language...">
+                            <core:ListItem key="{appModel>key}" text="{appModel>text}" additionalText="{appModel>code}"/>
+                        </ComboBox>
+                    </Toolbar>
+
+                    <VBox class="sapUiSmallMargin">
+                        <TextArea
+                            id="sourceTextArea"
+                            width="100%"
+                            rows="8"
+                            growing="true"
+                            growingMaxLines="12"
+                            placeholder="Type or paste text to translate here..."
+                            liveChange=".onSourceTextLiveChange"
+                            class="plmTextArea"/>
+
+                        <Toolbar height="3rem" class="sapUiTinyMarginTop">
+                            <Text id="charCountText" text="0 characters"/>
+                            <ToolbarSpacer/>
+                            <Button
+                                text="Clear"
+                                icon="sap-icon://clear-all"
+                                press=".onClearText"
+                                type="Transparent"
+                                class="sapUiTinyMarginEnd"/>
+                            <Button
+                                id="btnTranslate"
+                                text="Translate"
+                                icon="sap-icon://translate"
+                                type="Emphasized"
+                                press=".onTranslate"/>
+                        </Toolbar>
+                    </VBox>
+                </VBox>
+
+                <!-- Right Column: Translated Text Output -->
+                <VBox class="plmCard sapUiSmallMarginBottom">
+                    <Toolbar class="sapUiTinyMarginBottom">
+                        <core:Icon src="sap-icon://translate" class="sapUiTinyMarginEnd"/>
+                        <Title text="Translated Result" level="H4"/>
+                        <ToolbarSpacer/>
+                        <ObjectStatus
+                            id="detectedLanguageStatus"
+                            text="Ready"
+                            state="None"
+                            class="sapUiTinyMarginEnd"/>
+                        <Button
+                            id="btnCopy"
+                            icon="sap-icon://copy"
+                            tooltip="Copy translated text"
+                            press=".onCopyTranslation"
+                            enabled="false"/>
+                    </Toolbar>
+
+                    <VBox class="sapUiSmallMargin">
+                        <TextArea
+                            id="translatedTextArea"
+                            width="100%"
+                            rows="8"
+                            growing="true"
+                            growingMaxLines="12"
+                            editable="false"
+                            placeholder="Translation output will appear here..."
+                            class="plmTextArea plmOutputArea"/>
+
+                        <Toolbar height="3rem" class="sapUiTinyMarginTop">
+                            <Text id="translatedCharCountText" text="0 characters"/>
+                            <ToolbarSpacer/>
+                            <ObjectStatus
+                                id="translationStatusText"
+                                text=""
+                                state="None"/>
+                        </Toolbar>
+                    </VBox>
+                </VBox>
+
+            </layout:Grid>
+
+            <!-- Test Result Evaluation Panel (Saves to TestResults CDS Entity) -->
+            <VBox class="plmCard sapUiSmallMarginTop">
+                <Toolbar>
+                    <core:Icon src="sap-icon://check-availability" class="sapUiTinyMarginEnd"/>
+                    <Title text="Log Test Evaluation" level="H4"/>
+                    <ToolbarSpacer/>
+                    <Text text="Evaluate accuracy and persist outcome to database" class="sapUiTinyMarginEnd"/>
+                </Toolbar>
+
+                <VBox class="sapUiMediumMargin">
+                    <layout:Grid defaultSpan="XL4 L4 M6 S12">
+
+                        <!-- Outcome Selector -->
+                        <VBox>
+                            <Label text="Test Outcome:" required="true" class="sapUiTinyMarginBottom"/>
+                            <RadioButtonGroup id="outcomeRadioGroup" columns="3" selectedIndex="0">
+                                <buttons>
+                                    <RadioButton text="Success"/>
+                                    <RadioButton text="Partial"/>
+                                    <RadioButton text="Failure"/>
+                                </buttons>
+                            </RadioButtonGroup>
+                        </VBox>
+
+                        <!-- Accuracy Slider -->
+                        <VBox>
+                            <HBox justifyContent="SpaceBetween" alignItems="Center">
+                                <Label text="Translation Accuracy (%):" required="true"/>
+                                <Text id="accuracyValueText" text="100%" class="sapUiTinyMarginBegin"/>
+                            </HBox>
+                            <Slider
+                                id="accuracySlider"
+                                value="100"
+                                min="0"
+                                max="100"
+                                step="5"
+                                enableTickmarks="true"
+                                liveChange=".onAccuracySliderChange"/>
+                        </VBox>
+
+                        <!-- Tested By -->
+                        <VBox>
+                            <Label text="Tested By:" required="true" class="sapUiTinyMarginBottom"/>
+                            <Input
+                                id="testedByInput"
+                                value="{appModel>/currentUser}"
+                                placeholder="Enter tester name or user ID"/>
+                        </VBox>
+
+                    </layout:Grid>
+
+                    <!-- Observation Notes -->
+                    <VBox class="sapUiSmallMarginTop">
+                        <Label text="Observations / Notes:"/>
+                        <TextArea
+                            id="observationInput"
+                            width="100%"
+                            rows="3"
+                            placeholder="Add specific comments, grammatical remarks, or PLM domain observations..."/>
+                    </VBox>
+
+                    <!-- Action Bar -->
+                    <HBox justifyContent="End" class="sapUiSmallMarginTop">
+                        <Button
+                            id="btnSaveResult"
+                            text="Save Test Result"
+                            icon="sap-icon://save"
+                            type="Emphasized"
+                            press=".onSaveTestResult"
+                            enabled="false"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+
+        </content>
+    </Page>
+</mvc:View>

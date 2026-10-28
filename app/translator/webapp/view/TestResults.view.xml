@@ -1,0 +1,154 @@
+<mvc:View
+    controllerName="plm.translator.app.controller.TestResults"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:layout="sap.ui.layout"
+    xmlns:core="sap.ui.core">
+
+    <Page showHeader="false" enableScrolling="true" class="sapUiContentPadding">
+        <content>
+            <!-- Banner Header -->
+            <VBox class="plmHeaderBanner sapUiSmallMarginBottom">
+                <Title text="Translation Test Results" level="H2"/>
+                <Text text="Central repository of all translation test cases, quality metrics, and evaluation history."/>
+            </VBox>
+
+            <!-- KPI Tiles Grid -->
+            <layout:Grid defaultSpan="XL3 L3 M6 S12" class="sapUiSmallMarginBottom">
+                <!-- Total Tests -->
+                <VBox class="plmKpiCard">
+                    <Text id="kpiTotalTests" text="{resultsStatsModel>/totalTests}" class="plmKpiValue plmKpiInfo"/>
+                    <Text text="Total Tests Logged" class="plmKpiLabel"/>
+                </VBox>
+
+                <!-- Success Rate -->
+                <VBox class="plmKpiCard">
+                    <Text id="kpiOverallSuccessRate" text="{resultsStatsModel>/successRate}%" class="plmKpiValue plmKpiSuccess"/>
+                    <Text text="Overall Accuracy / Pass Rate" class="plmKpiLabel"/>
+                </VBox>
+
+                <!-- Passed -->
+                <VBox class="plmKpiCard">
+                    <Text id="kpiPassedCount" text="{resultsStatsModel>/passedCount}" class="plmKpiValue plmKpiSuccess"/>
+                    <Text text="Passed (Success)" class="plmKpiLabel"/>
+                </VBox>
+
+                <!-- Failed -->
+                <VBox class="plmKpiCard">
+                    <Text id="kpiFailedCount" text="{resultsStatsModel>/failedCount}" class="plmKpiValue plmKpiError"/>
+                    <Text text="Failed / Partial" class="plmKpiLabel"/>
+                </VBox>
+            </layout:Grid>
+
+            <!-- Table Card with Filtering & Export -->
+            <VBox class="plmCard">
+                <Toolbar class="sapUiTinyMarginBottom">
+                    <core:Icon src="sap-icon://filter" class="sapUiTinyMarginEnd"/>
+                    <Title text="Test Records" level="H4"/>
+                    <ToolbarSpacer/>
+
+                    <!-- Search Input -->
+                    <SearchField
+                        id="searchField"
+                        placeholder="Search text or tester..."
+                        width="240px"
+                        search=".onSearchFilter"
+                        class="sapUiTinyMarginEnd"/>
+
+                    <!-- Outcome Filter -->
+                    <Select
+                        id="outcomeFilterSelect"
+                        change=".onFilterChange"
+                        selectedKey="ALL"
+                        width="140px"
+                        class="sapUiTinyMarginEnd">
+                        <items>
+                            <core:Item key="ALL" text="All Outcomes"/>
+                            <core:Item key="Success" text="Success"/>
+                            <core:Item key="Partial" text="Partial"/>
+                            <core:Item key="Failure" text="Failure"/>
+                        </items>
+                    </Select>
+
+                    <!-- Export Excel Button -->
+                    <Button
+                        text="Export to Excel"
+                        icon="sap-icon://excel-attachment"
+                        type="Emphasized"
+                        press=".onExportExcel"
+                        class="sapUiTinyMarginEnd"/>
+
+                    <!-- Refresh Button -->
+                    <Button
+                        icon="sap-icon://refresh"
+                        tooltip="Refresh list"
+                        type="Transparent"
+                        press=".onRefreshData"/>
+                </Toolbar>
+
+                <Table
+                    id="testResultsTable"
+                    items="{
+                        path: 'resultsModel>/items',
+                        sorter: { path: 'createdAt', descending: true }
+                    }"
+                    growing="true"
+                    growingThreshold="25"
+                    noDataText="No translation test results recorded yet">
+                    <columns>
+                        <Column width="7rem"><Text text="Outcome"/></Column>
+                        <Column width="6rem"><Text text="Accuracy"/></Column>
+                        <Column width="20%"><Text text="Original Text"/></Column>
+                        <Column width="25%"><Text text="Translated Text"/></Column>
+                        <Column width="10rem"><Text text="Target Lang"/></Column>
+                        <Column width="9rem"><Text text="Tested By"/></Column>
+                        <Column width="9rem"><Text text="Date"/></Column>
+                        <Column width="6rem" hAlign="End"><Text text="Actions"/></Column>
+                    </columns>
+                    <items>
+                        <ColumnListItem>
+                            <cells>
+                                <ObjectStatus
+                                    text="{resultsModel>outcome}"
+                                    state="{= ${resultsModel>outcome} === 'Success' ? 'Success' : (${resultsModel>outcome} === 'Partial' ? 'Warning' : 'Error') }"
+                                    icon="{= ${resultsModel>outcome} === 'Success' ? 'sap-icon://sys-enter-2' : (${resultsModel>outcome} === 'Partial' ? 'sap-icon://alert' : 'sap-icon://error') }"/>
+
+                                <ObjectNumber
+                                    number="{resultsModel>accuracy}"
+                                    unit="%"
+                                    state="{= ${resultsModel>accuracy} >= 80 ? 'Success' : (${resultsModel>accuracy} >= 50 ? 'Warning' : 'Error') }"/>
+
+                                <Text text="{resultsModel>textToTranslate}" maxLines="2"/>
+
+                                <Text text="{resultsModel>translatedText}" maxLines="2"/>
+
+                                <Text text="{resultsModel>targetLanguage}"/>
+
+                                <Text text="{resultsModel>testedBy}"/>
+
+                                <Text text="{
+                                    path: 'resultsModel>createdAt',
+                                    formatter: '.formatDate'
+                                }"/>
+
+                                <HBox justifyContent="End">
+                                    <Button
+                                        icon="sap-icon://hint"
+                                        tooltip="View Details"
+                                        type="Transparent"
+                                        press=".onViewDetails"/>
+                                    <Button
+                                        icon="sap-icon://delete"
+                                        tooltip="Delete"
+                                        type="Transparent"
+                                        press=".onDeleteRecord"/>
+                                </HBox>
+                            </cells>
+                        </ColumnListItem>
+                    </items>
+                </Table>
+            </VBox>
+
+        </content>
+    </Page>
+</mvc:View>

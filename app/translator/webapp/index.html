@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLM Translator</title>
+
+    <!-- SAPUI5 Bootstrap -->
+    <script id="sap-ui-bootstrap"
+        src="https://sdk.openui5.org/resources/sap-ui-core.js"
+        data-sap-ui-theme="sap_horizon"
+        data-sap-ui-libs="sap.m, sap.ui.core, sap.ui.layout, sap.ui.unified"
+        data-sap-ui-resourceroots='{ "plm.translator.app": "./" }'
+        data-sap-ui-compatVersion="edge"
+        data-sap-ui-async="true"
+        data-sap-ui-oninit="module:sap/ui/core/ComponentSupport">
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="sapUiBody" id="content">
+    <!-- UI5 Component Container -->
+    <div data-sap-ui-component
+         data-name="plm.translator.app"
+         data-id="container"
+         data-settings='{ "id": "plm.translator.app" }'
+         style="height: 100%">
+    </div>
+</body>
+</html>

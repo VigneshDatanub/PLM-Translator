@@ -1,0 +1,34 @@
+<mvc:View
+    controllerName="plm.translator.app.controller.App"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    displayBlock="true">
+    <Page showHeader="true" enableScrolling="false">
+        <customHeader>
+            <Bar class="plmShellHeader">
+                <contentLeft>
+                    <Title text="PLM Translator" level="H2" class="sapUiSmallMarginBegin"/>
+                    <ObjectStatus text="Google Cloud API v2" state="Information" class="sapUiTinyMarginBegin"/>
+                </contentLeft>
+                <contentMiddle>
+                    <SegmentedButton id="navSegmentedBtn" selectedKey="translator" selectionChange=".onNavSelect">
+                        <items>
+                            <SegmentedButtonItem key="translator" icon="sap-icon://translate" text="Single Translation"/>
+                            <SegmentedButtonItem key="massTranslation" icon="sap-icon://excel-attachment" text="Mass Translation"/>
+                            <SegmentedButtonItem key="testResults" icon="sap-icon://chart-table-view" text="Test Results"/>
+                        </items>
+                    </SegmentedButton>
+                </contentMiddle>
+                <contentRight>
+                    <HBox alignItems="Center" class="sapUiSmallMarginEnd">
+                        <Avatar displaySize="XS" initials="US" backgroundColor="Accent6" class="sapUiTinyMarginEnd"/>
+                        <Text text="{appModel>/currentUser}"/>
+                    </HBox>
+                </contentRight>
+            </Bar>
+        </customHeader>
+        <content>
+            <App id="appContainer"/>
+        </content>
+    </Page>
+</mvc:View>

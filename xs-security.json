@@ -1,0 +1,31 @@
+{
+  "xsappname": "plm-translator",
+  "tenant-mode": "dedicated",
+  "description": "Security configuration for PLM Translator",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.TranslatorUser",
+      "description": "User access to PLM Translator"
+    },
+    {
+      "name": "$XSAPPNAME.TranslatorAdmin",
+      "description": "Administrator access to PLM Translator"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "TranslatorUserRole",
+      "description": "Role for translating text and running tests",
+      "scope-references": [
+        "$XSAPPNAME.TranslatorUser"
+      ]
+    },
+    {
+      "name": "TranslatorAdminRole",
+      "description": "Role for full administration and results management",
+      "scope-references": [
+        "$XSAPPNAME.TranslatorAdmin"
+      ]
+    }
+  ]
+}

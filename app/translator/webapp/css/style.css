@@ -1,0 +1,155 @@
+/* =============================================================
+   PLM Translator - Custom Application Styling
+   Enhances SAP Horizon Theme with Modern Cards, Gradients & Polish
+   ============================================================= */
+
+/* Main layout enhancements */
+.plmShellHeader {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.plmHeaderBanner {
+    background: linear-gradient(135deg, #005fb8 0%, #003666 100%);
+    border-radius: 8px;
+    padding: 1.5rem;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(0, 95, 184, 0.25);
+    margin-bottom: 1rem;
+}
+
+.plmHeaderBanner h2 {
+    color: #ffffff;
+    font-weight: 600;
+    margin: 0;
+}
+
+.plmHeaderBanner p {
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0.25rem 0 0 0;
+}
+
+/* Card styling */
+.plmCard {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.plmCard:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Stats / KPI Tiles */
+.plmKpiCard {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 1.25rem;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.plmKpiValue {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.plmKpiLabel {
+    font-size: 0.875rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.plmKpiSuccess {
+    color: #107e3e;
+}
+
+.plmKpiWarning {
+    color: #e9730c;
+}
+
+.plmKpiError {
+    color: #bb0000;
+}
+
+.plmKpiInfo {
+    color: #005fb8;
+}
+
+/* Source & Output Text Panels */
+.plmTextArea .sapMTextAreaInner {
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 6px;
+    transition: border-color 0.2s;
+}
+
+.plmOutputArea {
+    background-color: #f8fafc !important;
+}
+
+.plmOutputArea .sapMTextAreaInner {
+    background-color: #f8fafc !important;
+    color: #1e293b !important;
+    font-weight: 500;
+}
+
+/* Accuracy Slider & Badge */
+.plmAccuracyBadge {
+    font-size: 1.25rem;
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    display: inline-block;
+}
+
+.plmAccuracyHigh {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.plmAccuracyMid {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.plmAccuracyLow {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* File Drop Zone / Uploader */
+.plmDropZone {
+    border: 2px dashed #93c5fd;
+    border-radius: 8px;
+    background-color: #f0f7ff;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.plmDropZone:hover {
+    border-color: #005fb8;
+    background-color: #e0effe;
+}
+
+/* Status Badges */
+.plmStatusSuccess {
+    color: #107e3e;
+    font-weight: 600;
+}
+
+.plmStatusFailure {
+    color: #bb0000;
+    font-weight: 600;
+}
+
+.plmStatusPartial {
+    color: #e9730c;
+    font-weight: 600;
+}
