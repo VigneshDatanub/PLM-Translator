@@ -1,0 +1,18 @@
+{
+  "typescript.validate.enable": false,
+  "javascript.validate.enable": true,
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "mta-op-*": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/gen": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/gen/**": true
+  }
+}

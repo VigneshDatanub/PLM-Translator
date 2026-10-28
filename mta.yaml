@@ -8,7 +8,6 @@ build-parameters:
   before-all:
     - builder: custom
       commands:
-        - npm install --production
         - npx cds build --production
 
 modules:
@@ -42,11 +41,24 @@ modules:
           srv-url: ${default-url}
 
   # ─────────────────────────────────────────────────────────────
-  # App Deployer / UI5 Frontend
+  # UI5 Frontend Archive Builder
+  # ─────────────────────────────────────────────────────────────
+  - name: plm-translator-ui5
+    type: html5
+    path: app/translator
+    build-parameters:
+      build-result: dist
+      builder: custom
+      commands:
+        - npm run build
+      supported-platforms: []
+
+  # ─────────────────────────────────────────────────────────────
+  # App Deployer / UI5 Frontend to HTML5 Repository
   # ─────────────────────────────────────────────────────────────
   - name: plm-translator-app-deployer
     type: com.sap.application.content
-    path: app/translator
+    path: gen
     requires:
       - name: plm-translator-html5-repo-host
         parameters:
@@ -56,8 +68,28 @@ modules:
       requires:
         - name: plm-translator-ui5
           artifacts:
-            - dist.zip
+            - plmtranslatorapp.zip
           target-path: resources/
+
+  # ─────────────────────────────────────────────────────────────
+  # Standalone Approuter (Frontend Gateway & Auth)
+  # ─────────────────────────────────────────────────────────────
+  - name: plm-translator-router
+    type: approuter.nodejs
+    path: app/router
+    parameters:
+      disk-quota: 256M
+      memory: 256M
+    requires:
+      - name: plm-translator-auth
+      - name: plm-translator-html5-repo-runtime
+      - name: plm-translator-destination-service
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api
+          url: ~{srv-url}
+          forwardAuthToken: true
 
 resources:
   # ─────────────────────────────────────────────────────────────
@@ -90,3 +122,21 @@ resources:
     parameters:
       service: html5-apps-repo
       service-plan: app-host
+
+  # ─────────────────────────────────────────────────────────────
+  # HTML5 Application Repository Runtime (For Approuter)
+  # ─────────────────────────────────────────────────────────────
+  - name: plm-translator-html5-repo-runtime
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-runtime
+
+  # ─────────────────────────────────────────────────────────────
+  # Destination Service (For Approuter)
+  # ─────────────────────────────────────────────────────────────
+  - name: plm-translator-destination-service
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite

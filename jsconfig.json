@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2022",
+    "checkJs": false
+  },
+  "exclude": [
+    "node_modules",
+    "**/node_modules",
+    "gen",
+    "mta_archives",
+    "mta-op-*"
+  ]
+}
