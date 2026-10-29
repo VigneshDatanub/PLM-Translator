@@ -20,7 +20,7 @@
                     </SegmentedButton>
                 </contentMiddle>
                 <contentRight>
-                    <HBox alignItems="Center" class="sapUiSmallMarginEnd">
+                    <HBox alignItems="Center" renderType="Bare" class="sapUiSmallMarginEnd">
                         <Avatar displaySize="XS" initials="US" backgroundColor="Accent6" class="sapUiTinyMarginEnd"/>
                         <Text text="{appModel>/currentUser}"/>
                     </HBox>

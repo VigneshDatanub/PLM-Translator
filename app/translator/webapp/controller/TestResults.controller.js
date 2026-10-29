@@ -104,6 +104,7 @@ sap.ui.define([
             var nPassed = 0;
             var nFailed = 0;
             var nTotalAcc = 0;
+            var nEvaluated = 0;
 
             for (var i = 0; i < nTotal; i++) {
                 var item = aItems[i];
@@ -112,10 +113,17 @@ sap.ui.define([
                 } else {
                     nFailed++;
                 }
-                nTotalAcc += (item.accuracy !== null && item.accuracy !== undefined) ? item.accuracy : 100;
+                if (item.accuracy !== null && item.accuracy !== undefined && item.accuracy !== "") {
+                    nTotalAcc += Number(item.accuracy);
+                    nEvaluated++;
+                }
             }
 
-            var nRate = nTotal > 0 ? Math.round(nTotalAcc / nTotal) : 100;
+            // Overall accuracy: Average of human-evaluated tests.
+            // If none evaluated, fallback to the pass rate percentage.
+            var nRate = nEvaluated > 0
+                ? Math.round(nTotalAcc / nEvaluated)
+                : (nTotal > 0 ? Math.round((nPassed / nTotal) * 100) : 100);
 
             this._oStatsModel.setData({
                 totalTests: nTotal,
@@ -172,6 +180,36 @@ sap.ui.define([
         /**
          * Date Formatter
          */
+        /**
+         * Accuracy Formatters (Outputs 'N/A' for non-evaluated mass translations)
+         */
+        formatAccuracy: function (nAccuracy) {
+            if (nAccuracy === null || nAccuracy === undefined || nAccuracy === "") {
+                return "N/A";
+            }
+            return nAccuracy;
+        },
+
+        formatAccuracyUnit: function (nAccuracy) {
+            if (nAccuracy === null || nAccuracy === undefined || nAccuracy === "") {
+                return "";
+            }
+            return "%";
+        },
+
+        formatAccuracyState: function (nAccuracy) {
+            if (nAccuracy === null || nAccuracy === undefined || nAccuracy === "") {
+                return "None";
+            }
+            if (nAccuracy >= 80) {
+                return "Success";
+            }
+            if (nAccuracy >= 50) {
+                return "Warning";
+            }
+            return "Error";
+        },
+
         formatDate: function (sDate) {
             if (!sDate) {
                 return "";
@@ -212,7 +250,7 @@ sap.ui.define([
                         class: "sapUiSmallMargin",
                         items: [
                             new Label({ text: "Outcome & Accuracy:", design: "Bold" }),
-                            new Text({ text: oData.outcome + " (" + oData.accuracy + "%)" }),
+                            new Text({ text: oData.outcome + (oData.accuracy !== null && oData.accuracy !== undefined && oData.accuracy !== "" ? " (" + oData.accuracy + "%)" : " (N/A)") }),
 
                             new Label({ text: "Target Language:", design: "Bold", class: "sapUiSmallMarginTop" }),
                             new Text({ text: oData.targetLanguage || "N/A" }),

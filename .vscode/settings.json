@@ -12,7 +12,7 @@
     "**/gen": true
   },
   "files.watcherExclude": {
-    "**/node_modules/**": true,
     "**/gen/**": true
-  }
+  },
+  "sqltools.connections": []
 }

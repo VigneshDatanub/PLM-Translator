@@ -9,22 +9,25 @@
 }
 
 .plmHeaderBanner {
-    background: linear-gradient(135deg, #005fb8 0%, #003666 100%);
+    background: var(--sapTile_Background, #ffffff);
+    border: 1px solid var(--sapTile_BorderColor, #e2e8f0);
     border-radius: 8px;
-    padding: 1.5rem;
-    color: #ffffff;
-    box-shadow: 0 4px 14px rgba(0, 95, 184, 0.25);
+    padding: 1.25rem 1.5rem;
+    color: var(--sapTextColor, #1d2d3e);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
     margin-bottom: 1rem;
 }
 
+.plmHeaderBanner .sapMTitle,
 .plmHeaderBanner h2 {
-    color: #ffffff;
+    color: var(--sapTitleColor, #1d2d3e);
     font-weight: 600;
     margin: 0;
 }
 
+.plmHeaderBanner .sapMText,
 .plmHeaderBanner p {
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--sapContent_LabelColor, #64748b);
     margin: 0.25rem 0 0 0;
 }
 

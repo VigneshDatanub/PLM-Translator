@@ -101,7 +101,7 @@ cds.on('bootstrap', (app) => {
                         dbRecords.push({
                             ID: uuidv4(),
                             outcome: 'Success',
-                            accuracy: 0,
+                            accuracy: null,
                             observation: `Mass translation - Row ${rowIndex}${description ? ' - ' + description : ''}`,
                             testedBy: testedBy.trim(),
                             textToTranslate: originalData.text,
@@ -116,7 +116,7 @@ cds.on('bootstrap', (app) => {
                         dbRecords.push({
                             ID: uuidv4(),
                             outcome: 'Failure',
-                            accuracy: 0,
+                            accuracy: null,
                             observation: `Mass translation FAILED - Row ${rowIndex} - Error: ${errorMessage}${description ? ' - ' + description : ''}`,
                             testedBy: testedBy.trim(),
                             textToTranslate: originalData.text,

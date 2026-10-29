@@ -114,9 +114,18 @@
                                     icon="{= ${resultsModel>outcome} === 'Success' ? 'sap-icon://sys-enter-2' : (${resultsModel>outcome} === 'Partial' ? 'sap-icon://alert' : 'sap-icon://error') }"/>
 
                                 <ObjectNumber
-                                    number="{resultsModel>accuracy}"
-                                    unit="%"
-                                    state="{= ${resultsModel>accuracy} >= 80 ? 'Success' : (${resultsModel>accuracy} >= 50 ? 'Warning' : 'Error') }"/>
+                                    number="{
+                                        path: 'resultsModel>accuracy',
+                                        formatter: '.formatAccuracy'
+                                    }"
+                                    unit="{
+                                        path: 'resultsModel>accuracy',
+                                        formatter: '.formatAccuracyUnit'
+                                    }"
+                                    state="{
+                                        path: 'resultsModel>accuracy',
+                                        formatter: '.formatAccuracyState'
+                                    }"/>
 
                                 <Text text="{resultsModel>textToTranslate}" maxLines="2"/>
 
