@@ -7,17 +7,18 @@
 // 3. Uploading Excel workbook & triggering batch translation
 // 4. Presenting execution KPIs (Total rows, Success %, etc.)
 // 5. Previewing results & exporting session results to Excel
+// Compatible with SAP Build Work Zone Launchpad.
 // =============================================================
 
 sap.ui.define([
-    "sap/ui/core/mvc/Controller",
+    "plm/translator/app/controller/BaseController",
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageToast",
     "sap/m/MessageBox"
-], function (Controller, JSONModel, MessageToast, MessageBox) {
+], function (BaseController, JSONModel, MessageToast, MessageBox) {
     "use strict";
 
-    return Controller.extend("plm.translator.app.controller.MassTranslation", {
+    return BaseController.extend("plm.translator.app.controller.MassTranslation", {
 
         onInit: function () {
             // Local model for holding the current batch session results
@@ -35,7 +36,7 @@ sap.ui.define([
          */
         onDownloadTemplate: function () {
             var oLink = document.createElement("a");
-            oLink.href = "/api/download-template-excel";
+            oLink.href = this.getApiUrl("/api/download-template-excel");
             oLink.download = "mass_translation_template.xlsx";
             document.body.appendChild(oLink);
             oLink.click();
@@ -110,7 +111,7 @@ sap.ui.define([
 
             var that = this;
 
-            fetch("/api/upload-and-translate", {
+            fetch(this.getApiUrl("/api/upload-and-translate"), {
                 method: "POST",
                 body: formData
             })
@@ -160,7 +161,7 @@ sap.ui.define([
             var oSessionModel = this.getView().getModel("sessionModel");
             var that = this;
 
-            fetch("/api/TestResults?$filter=sessionId eq '" + encodeURIComponent(sSessionId) + "'&$orderby=createdAt asc")
+            fetch(this.getApiUrl("/api/TestResults?$filter=sessionId eq '" + encodeURIComponent(sSessionId) + "'&$orderby=createdAt asc"))
                 .then(function (response) {
                     return response.json();
                 })
@@ -199,7 +200,7 @@ sap.ui.define([
             MessageToast.show("Generating Excel report for download...");
 
             // Submit a POST request to trigger browser download
-            fetch("/api/download-translation-results?session_id=" + encodeURIComponent(sSessionId), {
+            fetch(this.getApiUrl("/api/download-translation-results?session_id=" + encodeURIComponent(sSessionId)), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"

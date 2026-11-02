@@ -5,6 +5,7 @@
 // It initializes routing, sets up models (device, appModel), and
 // loads initial global data like the supported languages list and
 // current user information from the CAP OData service.
+// Compatible with Standalone Approuter and SAP Build Work Zone.
 // =============================================================
 
 sap.ui.define([
@@ -17,6 +18,18 @@ sap.ui.define([
     return UIComponent.extend("plm.translator.app.Component", {
         metadata: {
             manifest: "json"
+        },
+
+        /**
+         * Resolves API and asset URLs dynamically to support SAP Build Work Zone Launchpad.
+         */
+        getApiUrl: function (sPath) {
+            var sModulePath = sap.ui.require.toUrl("plm/translator/app");
+            if (!sModulePath || sModulePath === ".") {
+                return sPath.startsWith("/") ? sPath : "/" + sPath;
+            }
+            var sCleanPath = sPath.startsWith("/") ? sPath.slice(1) : sPath;
+            return sModulePath + "/" + sCleanPath;
         },
 
         /**
@@ -45,11 +58,12 @@ sap.ui.define([
          */
         _loadInitialData: function () {
             const oAppModel = this.getModel("appModel");
+            const that = this;
             // Set size limit to 1000 so all 196+ languages are displayed without UI5's default 100-item truncation
             oAppModel.setSizeLimit(1000);
 
             // 1. Pre-seed languages from bundled cache so UI never shows 'No data'
-            fetch("model/languages.json")
+            fetch(this.getApiUrl("model/languages.json"))
                 .then(function (res) {
                     if (res.ok) return res.json();
                     return null;
@@ -65,7 +79,7 @@ sap.ui.define([
                 .catch(function () {});
 
             // 2. Fetch supported languages list dynamically from CAP function /api/getLanguages()
-            fetch("/api/getLanguages()")
+            fetch(this.getApiUrl("/api/getLanguages()"))
                 .then(function (response) {
                     if (!response.ok) {
                         throw new Error("HTTP error " + response.status);
@@ -84,7 +98,7 @@ sap.ui.define([
                     // Do not wipe out languages if already pre-seeded
                     var curLangs = oAppModel.getProperty("/languages");
                     if (!curLangs || curLangs.length === 0) {
-                        fetch("model/languages.json")
+                        fetch(that.getApiUrl("model/languages.json"))
                             .then(function (res) { return res.json(); })
                             .then(function (langs) {
                                 if (Array.isArray(langs)) {
@@ -95,8 +109,8 @@ sap.ui.define([
                     }
                 });
 
-            // 2. Fetch logged-in / system user information from /api/getUserInfo()
-            fetch("/api/getUserInfo()")
+            // 3. Fetch logged-in / system user information from /api/getUserInfo() (CIS / IAS Profile)
+            fetch(this.getApiUrl("/api/getUserInfo()"))
                 .then(function (response) {
                     return response.json();
                 })
@@ -104,6 +118,12 @@ sap.ui.define([
                     if (data && data.user) {
                         oAppModel.setProperty("/userInfo", data);
                         oAppModel.setProperty("/currentUser", data.user);
+                        if (data.email) {
+                            oAppModel.setProperty("/currentUserEmail", data.email);
+                        }
+                        if (data.roles) {
+                            oAppModel.setProperty("/roles", data.roles);
+                        }
                     }
                 })
                 .catch(function (error) {

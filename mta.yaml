@@ -58,7 +58,7 @@ modules:
   # ─────────────────────────────────────────────────────────────
   - name: plm-translator-app-deployer
     type: com.sap.application.content
-    path: gen
+    path: .
     requires:
       - name: plm-translator-html5-repo-host
         parameters:
@@ -72,24 +72,38 @@ modules:
           target-path: resources/
 
   # ─────────────────────────────────────────────────────────────
-  # Standalone Approuter (Frontend Gateway & Auth)
+  # Destination Content Module (Instance Destinations for Managed Router)
   # ─────────────────────────────────────────────────────────────
-  - name: plm-translator-router
-    type: approuter.nodejs
-    path: app/router
-    parameters:
-      disk-quota: 256M
-      memory: 256M
+  - name: plm-translator-destination-content
+    type: com.sap.application.content
+    build-parameters:
+      no-source: true
     requires:
-      - name: plm-translator-auth
-      - name: plm-translator-html5-repo-runtime
       - name: plm-translator-destination-service
-      - name: srv-api
-        group: destinations
-        properties:
-          name: srv-api
-          url: ~{srv-url}
-          forwardAuthToken: true
+        parameters:
+          content-target: true
+      - name: plm-translator-html5-repo-host
+        parameters:
+          service-key:
+            name: plm-translator-html5-repo-host-key
+      - name: plm-translator-auth
+        parameters:
+          service-key:
+            name: plm-translator-auth-key
+    parameters:
+      content:
+        instance:
+          destinations:
+            - Name: plm_translator_html_repo_host
+              ServiceInstanceName: plm-translator-html5-repo-host
+              ServiceKeyName: plm-translator-html5-repo-host-key
+              sap.cloud.service: plmtranslator
+            - Authentication: OAuth2UserTokenExchange
+              Name: plm_translator_uaa
+              ServiceInstanceName: plm-translator-auth
+              ServiceKeyName: plm-translator-auth-key
+              sap.cloud.service: plmtranslator
+          existing_destinations_policy: update
 
 resources:
   # ─────────────────────────────────────────────────────────────
@@ -124,19 +138,12 @@ resources:
       service-plan: app-host
 
   # ─────────────────────────────────────────────────────────────
-  # HTML5 Application Repository Runtime (For Approuter)
-  # ─────────────────────────────────────────────────────────────
-  - name: plm-translator-html5-repo-runtime
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: html5-apps-repo
-      service-plan: app-runtime
-
-  # ─────────────────────────────────────────────────────────────
-  # Destination Service (For Approuter)
+  # Destination Service (For Work Zone Managed Approuter)
   # ─────────────────────────────────────────────────────────────
   - name: plm-translator-destination-service
     type: org.cloudfoundry.managed-service
     parameters:
       service: destination
       service-plan: lite
+      config:
+        HTML5Runtime_enabled: true

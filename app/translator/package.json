@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "description": "UI5 Frontend for PLM Translator",
   "scripts": {
-    "build": "node -e \"fs.mkdirSync('dist', {recursive: true})\" && tar -a -c -f dist/plmtranslatorapp.zip -C webapp ."
+    "build": "node -e \"fs.mkdirSync('dist', {recursive: true})\" && tar -a -cf dist/plmtranslatorapp.zip -C webapp *"
   }
 }

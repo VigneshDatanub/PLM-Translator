@@ -8,6 +8,21 @@
         "applicationVersion": {
             "version": "1.0.0"
         },
+        "crossNavigation": {
+            "inbounds": {
+                "PLMTranslator-manage": {
+                    "semanticObject": "PLMTranslator",
+                    "action": "manage",
+                    "title": "PLM Translator",
+                    "subTitle": "Google Cloud Translation Tool",
+                    "icon": "sap-icon://translate",
+                    "signature": {
+                        "parameters": {},
+                        "additionalParameters": "allowed"
+                    }
+                }
+            }
+        },
         "dataSources": {
             "translatorService": {
                 "uri": "/api/",
@@ -17,6 +32,10 @@
                 }
             }
         }
+    },
+    "sap.cloud": {
+        "public": true,
+        "service": "plmtranslator"
     },
     "sap.ui5": {
         "rootView": {

@@ -5,16 +5,17 @@
 // 1. Invoking CAP OData Action: /api/translate
 // 2. Persisting test evaluation to CAP OData Entity: /api/TestResults
 // 3. Clipboard copy, character counting, and validation
+// Compatible with SAP Build Work Zone and CIS user context.
 // =============================================================
 
 sap.ui.define([
-    "sap/ui/core/mvc/Controller",
+    "plm/translator/app/controller/BaseController",
     "sap/m/MessageToast",
     "sap/m/MessageBox"
-], function (Controller, MessageToast, MessageBox) {
+], function (BaseController, MessageToast, MessageBox) {
     "use strict";
 
-    return Controller.extend("plm.translator.app.controller.Translator", {
+    return BaseController.extend("plm.translator.app.controller.Translator", {
 
         onInit: function () {
             // Local state for current active translation
@@ -80,8 +81,8 @@ sap.ui.define([
             oStatus.setText("Translating...").setState("Information");
             oBtnTranslate.setBusy(true);
 
-            // Call CAP OData action /api/translate
-            fetch("/api/translate", {
+            // Call CAP OData action /api/translate (Launchpad-safe)
+            fetch(this.getApiUrl("/api/translate"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -188,7 +189,7 @@ sap.ui.define([
             var oBtnSave = this.byId("btnSaveResult");
             oBtnSave.setBusy(true);
 
-            fetch("/api/TestResults", {
+            fetch(this.getApiUrl("/api/TestResults"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"

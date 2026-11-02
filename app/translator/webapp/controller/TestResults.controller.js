@@ -7,10 +7,11 @@
 // 3. Detailed record viewing dialog
 // 4. Deleting records via OData DELETE /api/TestResults(ID)
 // 5. Triggering Excel export via /api/export-results-excel
+// Compatible with SAP Build Work Zone Launchpad.
 // =============================================================
 
 sap.ui.define([
-    "sap/ui/core/mvc/Controller",
+    "plm/translator/app/controller/BaseController",
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageToast",
     "sap/m/MessageBox",
@@ -20,10 +21,10 @@ sap.ui.define([
     "sap/m/Label",
     "sap/m/Text",
     "sap/m/TextArea"
-], function (Controller, JSONModel, MessageToast, MessageBox, Dialog, Button, VBox, Label, Text, TextArea) {
+], function (BaseController, JSONModel, MessageToast, MessageBox, Dialog, Button, VBox, Label, Text, TextArea) {
     "use strict";
 
-    return Controller.extend("plm.translator.app.controller.TestResults", {
+    return BaseController.extend("plm.translator.app.controller.TestResults", {
 
         onInit: function () {
             // Model for holding raw + filtered items
@@ -72,7 +73,7 @@ sap.ui.define([
                 oTable.setBusy(true);
             }
 
-            fetch("/api/TestResults?$orderby=createdAt desc")
+            fetch(this.getApiUrl("/api/TestResults?$orderby=createdAt desc"))
                 .then(function (response) {
                     if (!response.ok) {
                         throw new Error("HTTP error " + response.status);
@@ -103,27 +104,16 @@ sap.ui.define([
             var nTotal = aItems.length;
             var nPassed = 0;
             var nFailed = 0;
-            var nTotalAcc = 0;
-            var nEvaluated = 0;
 
-            for (var i = 0; i < nTotal; i++) {
-                var item = aItems[i];
+            aItems.forEach(function (item) {
                 if (item.outcome === "Success") {
                     nPassed++;
-                } else {
+                } else if (item.outcome === "Failure") {
                     nFailed++;
                 }
-                if (item.accuracy !== null && item.accuracy !== undefined && item.accuracy !== "") {
-                    nTotalAcc += Number(item.accuracy);
-                    nEvaluated++;
-                }
-            }
+            });
 
-            // Overall accuracy: Average of human-evaluated tests.
-            // If none evaluated, fallback to the pass rate percentage.
-            var nRate = nEvaluated > 0
-                ? Math.round(nTotalAcc / nEvaluated)
-                : (nTotal > 0 ? Math.round((nPassed / nTotal) * 100) : 100);
+            var nRate = nTotal > 0 ? Math.round((nPassed / nTotal) * 100) : 100;
 
             this._oStatsModel.setData({
                 totalTests: nTotal,
@@ -134,67 +124,78 @@ sap.ui.define([
         },
 
         /**
-         * Search & Outcome Filtering
+         * Search filter: Filters across sourceText, translatedText, and testedBy
          */
-        onSearchFilter: function () {
+        onSearchLiveChange: function () {
             this._applyFilters();
         },
 
-        onFilterChange: function () {
+        /**
+         * Outcome filter dropdown change
+         */
+        onOutcomeFilterChange: function () {
             this._applyFilters();
         },
 
+        /**
+         * Apply both search query and outcome filter
+         */
         _applyFilters: function () {
             var sQuery = (this.byId("searchField").getValue() || "").toLowerCase().trim();
-            var sOutcome = this.byId("outcomeFilterSelect").getSelectedKey();
+            var sOutcomeFilter = this.byId("outcomeFilterSelect").getSelectedKey();
 
             var aFiltered = this._allItems.filter(function (item) {
-                // Outcome filter
-                if (sOutcome !== "ALL" && item.outcome !== sOutcome) {
+                // Outcome filter match
+                var bMatchesOutcome = true;
+                if (sOutcomeFilter && sOutcomeFilter !== "ALL") {
+                    bMatchesOutcome = (item.outcome === sOutcomeFilter);
+                }
+
+                if (!bMatchesOutcome) {
                     return false;
                 }
 
-                // Query filter
-                if (sQuery) {
-                    var sSrc = (item.textToTranslate || "").toLowerCase();
-                    var sTrans = (item.translatedText || "").toLowerCase();
-                    var sObs = (item.observation || "").toLowerCase();
-                    var sTester = (item.testedBy || "").toLowerCase();
-                    var sLang = (item.targetLanguage || "").toLowerCase();
-
-                    var bMatch = sSrc.indexOf(sQuery) !== -1 ||
-                                 sTrans.indexOf(sQuery) !== -1 ||
-                                 sObs.indexOf(sQuery) !== -1 ||
-                                 sTester.indexOf(sQuery) !== -1 ||
-                                 sLang.indexOf(sQuery) !== -1;
-                    if (!bMatch) {
-                        return false;
-                    }
+                // Search query match
+                if (!sQuery) {
+                    return true;
                 }
-                return true;
+
+                var sSource = (item.textToTranslate || "").toLowerCase();
+                var sTrans = (item.translatedText || "").toLowerCase();
+                var sTester = (item.testedBy || "").toLowerCase();
+                var sLang = (item.targetLanguage || "").toLowerCase();
+
+                return sSource.indexOf(sQuery) !== -1 ||
+                       sTrans.indexOf(sQuery) !== -1 ||
+                       sTester.indexOf(sQuery) !== -1 ||
+                       sLang.indexOf(sQuery) !== -1;
             });
 
             this._oResultsModel.setProperty("/items", aFiltered);
+            this.byId("tableTitle").setText("Test Records (" + aFiltered.length + ")");
         },
 
         /**
-         * Date Formatter
+         * UI formatters
          */
-        /**
-         * Accuracy Formatters (Outputs 'N/A' for non-evaluated mass translations)
-         */
-        formatAccuracy: function (nAccuracy) {
+        formatOutcomeState: function (sOutcome) {
+            switch (sOutcome) {
+                case "Success":
+                    return "Success";
+                case "Partial":
+                    return "Warning";
+                case "Failure":
+                    return "Error";
+                default:
+                    return "None";
+            }
+        },
+
+        formatAccuracyText: function (nAccuracy) {
             if (nAccuracy === null || nAccuracy === undefined || nAccuracy === "") {
                 return "N/A";
             }
-            return nAccuracy;
-        },
-
-        formatAccuracyUnit: function (nAccuracy) {
-            if (nAccuracy === null || nAccuracy === undefined || nAccuracy === "") {
-                return "";
-            }
-            return "%";
+            return nAccuracy + "%";
         },
 
         formatAccuracyState: function (nAccuracy) {
@@ -227,7 +228,7 @@ sap.ui.define([
          */
         onExportExcel: function () {
             var sOutcome = this.byId("outcomeFilterSelect").getSelectedKey();
-            var sUrl = "/api/export-results-excel";
+            var sUrl = this.getApiUrl("/api/export-results-excel");
             if (sOutcome && sOutcome !== "ALL") {
                 sUrl += "?outcome=" + encodeURIComponent(sOutcome);
             }
@@ -295,7 +296,7 @@ sap.ui.define([
                 title: "Confirm Deletion",
                 onClose: function (sAction) {
                     if (sAction === MessageBox.Action.OK) {
-                        fetch("/api/TestResults(" + oData.ID + ")", {
+                        fetch(that.getApiUrl("/api/TestResults(" + oData.ID + ")"), {
                             method: "DELETE"
                         })
                         .then(function (response) {

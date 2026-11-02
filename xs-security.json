@@ -5,7 +5,10 @@
   "oauth2-configuration": {
     "redirect-uris": [
       "https://*.cfapps.us10-001.hana.ondemand.com/**",
-      "https://*.hana.ondemand.com/**"
+      "https://*.hana.ondemand.com/**",
+      "https://*.workzone.cfapps.*.hana.ondemand.com/**",
+      "https://*.launchpad.cfapps.*.hana.ondemand.com/**",
+      "https://*.accounts.ondemand.com/**"
     ]
   },
   "scopes": [
@@ -31,6 +34,22 @@
       "description": "Role for full administration and results management",
       "scope-references": [
         "$XSAPPNAME.TranslatorAdmin"
+      ]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "PLM_Translator_Users",
+      "description": "Business user access for PLM Translator via CIS and SAP Build Work Zone",
+      "role-template-references": [
+        "$XSAPPNAME.TranslatorUserRole"
+      ]
+    },
+    {
+      "name": "PLM_Translator_Admins",
+      "description": "Administrator access for PLM Translator via CIS and SAP Build Work Zone",
+      "role-template-references": [
+        "$XSAPPNAME.TranslatorAdminRole"
       ]
     }
   ]

@@ -19,7 +19,7 @@
 
 using { plm.translator as db } from '../db/schema';
 
-service TranslatorService @(path: '/api') {
+service TranslatorService @(path: '/api', requires: 'authenticated-user') {
 
     // ─── TestResults Entity (OData CRUD) ───
     // Replaces: /api/save-test-results (POST), /api/test-results (GET), /api/test-results/:id (DELETE)
@@ -70,10 +70,16 @@ service TranslatorService @(path: '/api') {
         text   : String;
     };
 
-    // Replaces: /api/azure-user (GET)
+    // Replaces: /api/azure-user (GET) - Retrieves authenticated user from CIS/IAS
     function getUserInfo() returns {
         success   : Boolean;
         user      : String;
+        email     : String;
+        id        : String;
+        roles     : {
+            isAdmin : Boolean;
+            isUser  : Boolean;
+        };
         timestamp : String;
     };
 

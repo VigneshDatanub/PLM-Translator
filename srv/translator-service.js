@@ -171,13 +171,24 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         // ─────────────────────────────────────────────
         // FUNCTION: getUserInfo
         // Equivalent of: GET /api/azure-user
+        // Resolves user info dynamically from SAP Cloud Identity Services (CIS)
         // ─────────────────────────────────────────────
         this.on('getUserInfo', async (req) => {
-            // In BTP, user info comes from the request context
-            const user = req.user?.id || 'anonymous';
+            const userAttr = req.user?.attr || {};
+            const email = userAttr.email || (req.user?.id && req.user.id.includes('@') ? req.user.id : '');
+            const displayName = (userAttr.givenName && userAttr.familyName)
+                ? `${userAttr.givenName} ${userAttr.familyName}`
+                : (email || req.user?.id || 'Business User');
+
             return {
                 success: true,
-                user: user,
+                user: displayName,
+                email: email,
+                id: req.user?.id || 'anonymous',
+                roles: {
+                    isAdmin: req.user ? req.user.is('TranslatorAdmin') : false,
+                    isUser: req.user ? req.user.is('TranslatorUser') : false
+                },
                 timestamp: new Date().toISOString()
             };
         });
