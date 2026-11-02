@@ -232,7 +232,12 @@ sap.ui.define([
             if (sOutcome && sOutcome !== "ALL") {
                 sUrl += "?outcome=" + encodeURIComponent(sOutcome);
             }
-            window.location.href = sUrl;
+            var oLink = document.createElement("a");
+            oLink.href = sUrl;
+            oLink.download = "PLM_Test_Results.xlsx";
+            document.body.appendChild(oLink);
+            oLink.click();
+            document.body.removeChild(oLink);
             MessageToast.show("Exporting test results to Excel...");
         },
 

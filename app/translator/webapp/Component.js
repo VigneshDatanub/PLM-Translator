@@ -11,7 +11,12 @@
 sap.ui.define([
     "sap/ui/core/UIComponent",
     "sap/ui/Device",
-    "sap/ui/model/json/JSONModel"
+    "sap/ui/model/json/JSONModel",
+    "plm/translator/app/controller/BaseController",
+    "plm/translator/app/controller/App.controller",
+    "plm/translator/app/controller/Translator.controller",
+    "plm/translator/app/controller/MassTranslation.controller",
+    "plm/translator/app/controller/TestResults.controller"
 ], function (UIComponent, Device, JSONModel) {
     "use strict";
 
@@ -130,6 +135,10 @@ sap.ui.define([
                     console.warn("[Component] Error loading user info, using default:", error);
                     oAppModel.setProperty("/currentUser", "PLM Tester");
                 });
+        },
+
+        destroy: function () {
+            UIComponent.prototype.destroy.apply(this, arguments);
         }
     });
 });

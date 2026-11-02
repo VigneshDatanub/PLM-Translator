@@ -25,7 +25,7 @@
         },
         "dataSources": {
             "translatorService": {
-                "uri": "/api/",
+                "uri": "api/",
                 "type": "OData",
                 "settings": {
                     "odataVersion": "4.0"
@@ -41,7 +41,7 @@
         "rootView": {
             "viewName": "plm.translator.app.view.App",
             "type": "XML",
-            "id": "app"
+            "async": true
         },
         "models": {
             "": {

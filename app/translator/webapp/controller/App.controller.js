@@ -45,15 +45,6 @@ sap.ui.define([
             if (oRouter) {
                 oRouter.navTo(sKey);
             }
-
-            // Direct hash navigation fallback so tab click is 100% responsive
-            if (sKey === "translator") {
-                window.location.hash = "#/";
-            } else if (sKey === "massTranslation") {
-                window.location.hash = "#/mass-translation";
-            } else if (sKey === "testResults") {
-                window.location.hash = "#/test-results";
-            }
         }
     });
 });

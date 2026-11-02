@@ -72,7 +72,7 @@ modules:
           target-path: resources/
 
   # ─────────────────────────────────────────────────────────────
-  # Destination Content Module (Instance Destinations for Managed Router)
+  # Destination Content Module (Subaccount & Instance Destinations for Work Zone)
   # ─────────────────────────────────────────────────────────────
   - name: plm-translator-destination-content
     type: com.sap.application.content
@@ -90,9 +90,11 @@ modules:
         parameters:
           service-key:
             name: plm-translator-auth-key
+      - name: srv-api
     parameters:
       content:
-        instance:
+        subaccount:
+          existing_destinations_policy: update
           destinations:
             - Name: plm_translator_html_repo_host
               ServiceInstanceName: plm-translator-html5-repo-host
@@ -103,7 +105,34 @@ modules:
               ServiceInstanceName: plm-translator-auth
               ServiceKeyName: plm-translator-auth-key
               sap.cloud.service: plmtranslator
+            - Authentication: OAuth2UserTokenExchange
+              Name: srv-api
+              TokenServiceInstanceName: plm-translator-auth
+              TokenServiceKeyName: plm-translator-auth-key
+              URL: ~{srv-api/srv-url}
+              sap.cloud.service: plmtranslator
+              HTML5.DynamicDestination: true
+              HTML5.ForwardAuthToken: true
+        instance:
           existing_destinations_policy: update
+          destinations:
+            - Name: plm_translator_html_repo_host
+              ServiceInstanceName: plm-translator-html5-repo-host
+              ServiceKeyName: plm-translator-html5-repo-host-key
+              sap.cloud.service: plmtranslator
+            - Authentication: OAuth2UserTokenExchange
+              Name: plm_translator_uaa
+              ServiceInstanceName: plm-translator-auth
+              ServiceKeyName: plm-translator-auth-key
+              sap.cloud.service: plmtranslator
+            - Authentication: OAuth2UserTokenExchange
+              Name: srv-api
+              TokenServiceInstanceName: plm-translator-auth
+              TokenServiceKeyName: plm-translator-auth-key
+              URL: ~{srv-api/srv-url}
+              sap.cloud.service: plmtranslator
+              HTML5.DynamicDestination: true
+              HTML5.ForwardAuthToken: true
 
 resources:
   # ─────────────────────────────────────────────────────────────
