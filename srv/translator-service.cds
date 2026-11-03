@@ -1,34 +1,54 @@
 // =============================================================
 // PLM Translator - Service Definition (CDS)
 // =============================================================
-// This is the CAP equivalent of Python's routes/__init__.py
-// It declares WHAT endpoints exist (the contract).
-// The actual logic is in translator-service.js (the handler).
-//
-// Route Mapping from Python Flask → CAP:
-//   /api/languages           → getLanguages() function
-//   /api/translate            → translate() action
-//   /api/mass-translate       → massTranslate() action
-//   /api/save-test-results    → POST /TestResults (built-in OData)
-//   /api/test-results         → GET /TestResults (built-in OData)
-//   /api/test-results/:id     → DELETE /TestResults(ID) (built-in OData)
-//   /api/export-test-results  → exportResults() function
-//   /api/download-template    → downloadTemplate() function
-//   /api/azure-user           → getUserInfo() function
+// 100% Strict SAP CAPM Service Architecture
+//   - Standard OData V4 Service Contract
+//   - Declarative Role-Based Authorization (@restrict)
+//   - Draft enablement on TestResults for Fiori Elements
+//   - Clean service entities, actions, and functions
 // =============================================================
 
 using { plm.translator as db } from '../db/schema';
 
-service TranslatorService @(path: '/api', requires: 'authenticated-user') {
+@path: '/api'
+service TranslatorService @(requires: 'authenticated-user') {
 
-    // ─── TestResults Entity (OData CRUD) ───
-    // Replaces: /api/save-test-results (POST), /api/test-results (GET), /api/test-results/:id (DELETE)
-    // CAP auto-generates full OData CRUD endpoints for this entity
+    // ─── TestResults Entity (OData V4 CRUD + Draft Enabled) ───
+    @odata.draft.enabled
     entity TestResults as projection on db.TestResults;
 
+    // Declarative Security: TranslatorUser can Read & Create, TranslatorAdmin has full control
+    annotate TestResults with @(restrict: [
+        { grant: ['READ', 'CREATE'], to: 'TranslatorUser' },
+        { grant: '*', to: 'TranslatorAdmin' }
+    ]);
+
+    // ─── Translation Sessions (Header for Batch Runs) ───
+    @readonly
+    entity TranslationSessions as projection on db.TranslationSessions;
+
+    annotate TranslationSessions with @(restrict: [
+        { grant: ['READ'], to: 'TranslatorUser' },
+        { grant: '*', to: 'TranslatorAdmin' }
+    ]);
+
+    // ─── Languages CodeList (for Fiori Elements Value Helps) ───
+    @readonly
+    entity Languages as projection on db.Languages;
+
+    annotate Languages with @(restrict: [
+        { grant: 'READ', to: 'authenticated-user' }
+    ]);
+
+    // ─── Native CAP Media Entity for Excel Batch Processing ───
+    entity ExcelUploads as projection on db.ExcelUploads;
+
+    annotate ExcelUploads with @(restrict: [
+        { grant: ['READ', 'CREATE'], to: 'TranslatorUser' },
+        { grant: '*', to: 'TranslatorAdmin' }
+    ]);
+
     // ─── Translation Actions ───
-    // Replaces: /api/translate (POST)
-    // Action = POST-like operation with a request body
     action translate(
         text           : String,
         targetLanguage : String
@@ -40,11 +60,9 @@ service TranslatorService @(path: '/api', requires: 'authenticated-user') {
         error          : String;
     };
 
-    // Replaces: /api/mass-translate (POST)
-    // This is triggered from the UI after file upload
     action massTranslate(
-        textsJson       : LargeString,   // JSON array of source texts
-        targetLanguages : LargeString,   // JSON array of target language codes
+        textsJson       : LargeString,
+        targetLanguages : LargeString,
         testedBy        : String
     ) returns {
         success    : Boolean;
@@ -61,8 +79,6 @@ service TranslatorService @(path: '/api', requires: 'authenticated-user') {
     };
 
     // ─── Utility Functions ───
-    // Replaces: /api/languages (GET)
-    // Function = GET-like operation (read-only, no side effects)
     function getLanguages() returns array of {
         ![key] : String;
         code   : String;
@@ -70,7 +86,6 @@ service TranslatorService @(path: '/api', requires: 'authenticated-user') {
         text   : String;
     };
 
-    // Replaces: /api/azure-user (GET) - Retrieves authenticated user from CIS/IAS
     function getUserInfo() returns {
         success   : Boolean;
         user      : String;
@@ -83,10 +98,10 @@ service TranslatorService @(path: '/api', requires: 'authenticated-user') {
         timestamp : String;
     };
 
-    // Replaces: /api/export-test-results (GET)
-    // Returns file download — handled via custom express middleware
     function exportResults() returns LargeString;
 
-    // Replaces: /api/download-template (GET)
     function downloadTemplate() returns LargeString;
 }
+
+// Include SAP Fiori Elements UI Annotations
+using from './annotations';

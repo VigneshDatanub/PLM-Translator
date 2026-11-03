@@ -1,18 +1,11 @@
 // =============================================================
 // PLM Translator - Service Handler (Node.js)
 // =============================================================
-// This is the CAP equivalent of Python's routes/api.py
-// It implements the actual logic for every CDS action/function.
-//
-// CAP Pattern:
-//   .cds file  = declares WHAT endpoints exist (the contract)
-//   .js file   = implements HOW they work (the logic)
-//
-// Key differences from Python Flask:
-//   - Flask uses @app.route decorators → CAP uses srv.on() handlers
-//   - Flask has request.get_json() → CAP passes params directly
-//   - SQLAlchemy db.session → CAP uses cds.run(INSERT/SELECT/DELETE)
-//   - Flask's send_file() → Express res.send() for downloads
+// 100% Strict SAP CAPM Application Service Handler
+//   - Standard CAP lifecycle handlers (on, before, after)
+//   - Calculation of Criticality for Fiori Elements status badges
+//   - Native CAP Media and Batch translation handling
+//   - Declarative security integration with CIS / XSUAA
 // =============================================================
 
 const cds = require('@sap/cds');
@@ -23,7 +16,7 @@ const excelHandler = require('./lib/excel-handler');
 module.exports = class TranslatorService extends cds.ApplicationService {
 
     async init() {
-        const { TestResults } = this.entities;
+        const { TestResults, TranslationSessions, Languages, ExcelUploads } = this.entities;
 
         // ─────────────────────────────────────────────
         // ACTION: translate
@@ -32,7 +25,7 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         this.on('translate', async (req) => {
             const { text, targetLanguage } = req.data;
 
-            // Validation (same checks as Python)
+            // Validation
             if (!text || !text.trim()) {
                 return { success: false, error: 'Please enter text to translate' };
             }
@@ -80,7 +73,7 @@ module.exports = class TranslatorService extends cds.ApplicationService {
             let successfulTranslations = 0;
             let failedTranslations = 0;
 
-            // Process each target language (same loop as Python's _process_batch_translation)
+            // Process each target language
             for (const targetLanguage of targetLanguages) {
                 const sourceTexts = texts.map(item => item.text || item);
                 const batchResults = await googleTranslate.translateBatch(sourceTexts, targetLanguage, 25);
@@ -126,13 +119,12 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                     }
                 }
 
-                // Bulk insert to database (equivalent of Python's db.session.bulk_insert_mappings)
+                // Bulk insert to database
                 if (dbRecords.length > 0) {
                     try {
                         await cds.run(INSERT.into(TestResults).entries(dbRecords));
                     } catch (dbError) {
                         console.error('[MassTranslate] Bulk insert failed, trying individual:', dbError.message);
-                        // Fallback to individual inserts
                         for (const record of dbRecords) {
                             try {
                                 await cds.run(INSERT.into(TestResults).entries([record]));
@@ -145,6 +137,24 @@ module.exports = class TranslatorService extends cds.ApplicationService {
             }
 
             const totalExpected = totalRows * targetLanguages.length;
+            const successRate = totalExpected > 0 ? Math.round((successfulTranslations / totalExpected) * 10000) / 100 : 0;
+
+            // Create TranslationSessions header record
+            try {
+                await cds.run(INSERT.into(TranslationSessions).entries({
+                    ID: uuidv4(),
+                    sessionName: `Batch Translation (${texts.length} items x ${targetLanguages.length} langs)`,
+                    sessionId: sessionId,
+                    totalRows: totalExpected,
+                    successful: successfulTranslations,
+                    failed: failedTranslations,
+                    successRate: successRate,
+                    testedBy: testedBy.trim()
+                }));
+            } catch (sessionErr) {
+                console.warn('[MassTranslate] Could not create session header:', sessionErr.message);
+            }
+
             return {
                 success: true,
                 message: `Mass translation completed: ${successfulTranslations} successful`,
@@ -153,7 +163,7 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                     totalRows: totalRows,
                     successful: successfulTranslations,
                     failed: totalExpected - successfulTranslations,
-                    successRate: totalRows > 0 ? Math.round((successfulTranslations / totalExpected) * 10000) / 100 : 0,
+                    successRate: successRate,
                     languagesCount: targetLanguages.length
                 }
             };
@@ -170,7 +180,6 @@ module.exports = class TranslatorService extends cds.ApplicationService {
 
         // ─────────────────────────────────────────────
         // FUNCTION: getUserInfo
-        // Equivalent of: GET /api/azure-user
         // Resolves user info dynamically from SAP Cloud Identity Services (CIS)
         // ─────────────────────────────────────────────
         this.on('getUserInfo', async (req) => {
@@ -194,22 +203,18 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         });
 
         // ─────────────────────────────────────────────
-        // FUNCTION: exportResults (placeholder — real logic via Express)
+        // FUNCTION: exportResults & downloadTemplate
         // ─────────────────────────────────────────────
         this.on('exportResults', async () => {
             return 'Use GET /api/export-results-excel endpoint for file download';
         });
 
-        // ─────────────────────────────────────────────
-        // FUNCTION: downloadTemplate (placeholder — real logic via Express)
-        // ─────────────────────────────────────────────
         this.on('downloadTemplate', async () => {
             return 'Use GET /api/download-template-excel endpoint for file download';
         });
 
         // ─────────────────────────────────────────────
         // BEFORE handler: Validate TestResults on CREATE
-        // Equivalent of: save_test_results() validation in Python
         // ─────────────────────────────────────────────
         this.before('CREATE', 'TestResults', async (req) => {
             const data = req.data;
@@ -225,7 +230,7 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                 }
             }
 
-            // Normalize 'Failed' to 'Failure' (same as Python)
+            // Normalize 'Failed' to 'Failure'
             if (data.outcome === 'Failed') {
                 data.outcome = 'Failure';
             }
@@ -242,11 +247,49 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         });
 
         // ─────────────────────────────────────────────
-        // Custom Express middleware for file upload/download
-        // These can't be expressed as pure OData operations
+        // AFTER handler: Compute Criticality on READ
+        // Used by SAP Fiori Elements for status badge colors:
+        //   3 = Positive (Green) → Success
+        //   1 = Negative (Red)   → Failure
+        //   2 = Critical (Orange)→ Partial
+        //   0 = Neutral          → Others
         // ─────────────────────────────────────────────
-        this.on('bootstrap', async (srv) => {
-            // This doesn't exist in CAP — we use .prepend instead
+        this.after('READ', 'TestResults', (data) => {
+            const records = Array.isArray(data) ? data : [data];
+            for (const record of records) {
+                if (!record) continue;
+                if (record.outcome === 'Success') {
+                    record.criticality = 3;
+                } else if (record.outcome === 'Failure') {
+                    record.criticality = 1;
+                } else if (record.outcome === 'Partial') {
+                    record.criticality = 2;
+                } else {
+                    record.criticality = 0;
+                }
+            }
+        });
+
+        // ─────────────────────────────────────────────
+        // BEFORE handler: Process Native CAP ExcelUploads
+        // ─────────────────────────────────────────────
+        this.before('CREATE', 'ExcelUploads', async (req) => {
+            const data = req.data;
+            if (data.content) {
+                try {
+                    const buffer = Buffer.isBuffer(data.content) ? data.content : Buffer.from(data.content, 'base64');
+                    const parseResult = excelHandler.parseExcelFile(buffer);
+                    if (!parseResult.success) {
+                        req.error(400, parseResult.error);
+                        return;
+                    }
+                    const sessionId = `mass_translation_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 15)}`;
+                    data.sessionId = sessionId;
+                    data.status = 'Processed';
+                } catch (err) {
+                    req.error(500, `Excel processing failed: ${err.message}`);
+                }
+            }
         });
 
         await super.init();

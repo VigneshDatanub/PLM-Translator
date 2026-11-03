@@ -14,5 +14,8 @@
   "files.watcherExclude": {
     "**/gen/**": true
   },
+  "ui5plugin.linter.exceptions": [
+    "**/Component-preload.js"
+  ],
   "sqltools.connections": []
 }

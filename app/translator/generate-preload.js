@@ -53,7 +53,9 @@ files.forEach(file => {
     }
 });
 
-const preloadContent = `//@ui5-bundle ${namespace}/Component-preload.js
+const preloadContent = `/* ui5plugin-linter-disable */
+/* eslint-disable */
+//@ui5-bundle ${namespace}/Component-preload.js
 sap.ui.require.preload({
 ${preloadEntries.join(',\n')}
 });

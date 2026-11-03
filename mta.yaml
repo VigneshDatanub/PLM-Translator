@@ -19,6 +19,9 @@ modules:
     path: gen/db
     parameters:
       buildpack: nodejs_buildpack
+    build-parameters:
+      builder: custom
+      commands: []
     requires:
       - name: plm-translator-db
 
@@ -32,6 +35,9 @@ modules:
       buildpack: nodejs_buildpack
       memory: 512M
       disk-quota: 1024M
+    build-parameters:
+      builder: custom
+      commands: []
     requires:
       - name: plm-translator-db
       - name: plm-translator-auth

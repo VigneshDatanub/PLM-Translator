@@ -3,8 +3,8 @@
     "sap.app": {
         "id": "plm.translator.app",
         "type": "application",
-        "title": "PLM Translator",
-        "description": "PLM Translation Tool powered by Google Cloud Translation API",
+        "title": "PLM Translation Workbench",
+        "description": "PLM Translation Tool powered by Google Cloud Translation API and SAP Fiori Elements",
         "applicationVersion": {
             "version": "1.0.0"
         },
@@ -24,12 +24,17 @@
             }
         },
         "dataSources": {
-            "translatorService": {
+            "mainService": {
                 "uri": "api/",
                 "type": "OData",
                 "settings": {
+                    "annotations": ["annotation"],
                     "odataVersion": "4.0"
                 }
+            },
+            "annotation": {
+                "type": "ODataAnnotation",
+                "uri": "api/$metadata"
             }
         }
     },
@@ -37,83 +42,98 @@
         "public": true,
         "service": "plmtranslator"
     },
+    "sap.ui": {
+        "technology": "UI5",
+        "icons": {
+            "icon": "sap-icon://translate"
+        },
+        "deviceTypes": {
+            "desktop": true,
+            "tablet": true,
+            "phone": true
+        }
+    },
     "sap.ui5": {
-        "rootView": {
-            "viewName": "plm.translator.app.view.App",
-            "type": "XML",
-            "async": true
-        },
-        "models": {
-            "": {
-                "dataSource": "translatorService",
-                "settings": {
-                    "operationMode": "Server",
-                    "synchronizationMode": "None",
-                    "autoExpandSelect": true
-                }
-            },
-            "appModel": {
-                "type": "sap.ui.model.json.JSONModel",
-                "settings": {
-                    "data": {
-                        "languages": [],
-                        "translationResult": null,
-                        "busy": false,
-                        "massTranslationResult": null,
-                        "userInfo": {}
-                    }
-                }
-            }
-        },
-        "routing": {
-            "config": {
-                "routerClass": "sap.m.routing.Router",
-                "viewType": "XML",
-                "viewPath": "plm.translator.app.view",
-                "controlId": "appContainer",
-                "controlAggregation": "pages",
-                "async": true
-            },
-            "routes": [
-                {
-                    "name": "translator",
-                    "pattern": "",
-                    "target": "translator"
-                },
-                {
-                    "name": "massTranslation",
-                    "pattern": "mass-translation",
-                    "target": "massTranslation"
-                },
-                {
-                    "name": "testResults",
-                    "pattern": "test-results",
-                    "target": "testResults"
-                }
-            ],
-            "targets": {
-                "translator": {
-                    "viewName": "Translator",
-                    "viewLevel": 1
-                },
-                "massTranslation": {
-                    "viewName": "MassTranslation",
-                    "viewLevel": 2
-                },
-                "testResults": {
-                    "viewName": "TestResults",
-                    "viewLevel": 3
-                }
-            }
-        },
         "dependencies": {
             "minUI5Version": "1.120.0",
             "libs": {
                 "sap.m": {},
                 "sap.ui.core": {},
-                "sap.ui.layout": {},
-                "sap.ui.unified": {},
-                "sap.ui.table": {}
+                "sap.ushell": {},
+                "sap.fe.core": {},
+                "sap.fe.templates": {},
+                "sap.ui.unified": {}
+            }
+        },
+        "contentDensities": {
+            "compact": true,
+            "cozy": true
+        },
+        "models": {
+            "": {
+                "dataSource": "mainService",
+                "preload": true,
+                "settings": {
+                    "synchronizationMode": "None",
+                    "operationMode": "Server",
+                    "autoExpandSelect": true,
+                    "earlyRequests": true
+                }
+            }
+        },
+        "routing": {
+            "routes": [
+                {
+                    "pattern": ":?query:",
+                    "name": "TestResultsList",
+                    "target": "TestResultsList"
+                },
+                {
+                    "pattern": "TestResults({key}):?query:",
+                    "name": "TestResultsObjectPage",
+                    "target": "TestResultsObjectPage"
+                }
+            ],
+            "targets": {
+                "TestResultsList": {
+                    "type": "Component",
+                    "id": "TestResultsList",
+                    "name": "sap.fe.templates.ListReport",
+                    "options": {
+                        "settings": {
+                            "contextPath": "/TestResults",
+                            "controlConfiguration": {
+                                "@com.sap.vocabularies.UI.v1.LineItem": {
+                                    "tableSettings": {
+                                        "type": "ResponsiveTable"
+                                    },
+                                    "actions": {
+                                        "QuickTranslateAction": {
+                                            "press": "plm.translator.app.ext.customActions.onQuickTranslate",
+                                            "visible": true,
+                                            "text": "Quick Translate"
+                                        },
+                                        "MassUploadAction": {
+                                            "press": "plm.translator.app.ext.customActions.onMassUpload",
+                                            "visible": true,
+                                            "text": "Mass Translation (Excel)"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "TestResultsObjectPage": {
+                    "type": "Component",
+                    "id": "TestResultsObjectPage",
+                    "name": "sap.fe.templates.ObjectPage",
+                    "options": {
+                        "settings": {
+                            "contextPath": "/TestResults"
+                        }
+                    }
+                }
             }
         }
     }
