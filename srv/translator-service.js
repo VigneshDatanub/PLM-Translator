@@ -292,6 +292,18 @@ module.exports = class TranslatorService extends cds.ApplicationService {
             }
         });
 
+        // ─────────────────────────────────────────────
+        // LOCAL DEV: Ensure authorized user for local testing
+        // ─────────────────────────────────────────────
+        this.before('*', (req) => {
+            if (!process.env.VCAP_APPLICATION && (!req.user || req.user._is_anonymous)) {
+                req.user = new cds.User({
+                    id: 'alice',
+                    roles: ['TranslatorAdmin', 'TranslatorUser', 'authenticated-user', 'admin']
+                });
+            }
+        });
+
         await super.init();
     }
 };

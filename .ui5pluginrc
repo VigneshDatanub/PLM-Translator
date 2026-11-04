@@ -1,0 +1,18 @@
+{
+  "ui5": {
+    "ui5parser": {
+      "excludeFolderPatterns": [
+        "**/resources/**",
+        "**/dist/**",
+        "**/node_modules/**",
+        "**/Component-preload.js"
+      ]
+    },
+    "ui5linter": {
+      "jsClassExceptions": [
+        "plm.translator.app.Component-preload"
+      ]
+    }
+  }
+}
+

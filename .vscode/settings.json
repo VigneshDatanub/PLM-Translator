@@ -17,5 +17,14 @@
   "ui5plugin.linter.exceptions": [
     "**/Component-preload.js"
   ],
+  "ui5plugin.linter.jsClassExceptions": [
+    "plm.translator.app.Component-preload"
+  ],
+  "ui5.plugin.excludeFolderPatterns": [
+    "**/Component-preload.js"
+  ],
+  "ui5.plugin.jsClassExceptions": [
+    "plm.translator.app.Component-preload"
+  ],
   "sqltools.connections": []
 }

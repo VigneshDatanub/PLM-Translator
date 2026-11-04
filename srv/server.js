@@ -36,6 +36,35 @@ const upload = multer({
 cds.on('bootstrap', (app) => {
 
     // ─────────────────────────────────────────────
+    // Local Testing & Preview Route Forwarder:
+    // When testing locally at http://localhost:4004/app/,
+    // relative OData requests like "api/$metadata" request "/app/api/$metadata".
+    // This rewrites "/app/api/*" to "/api/*" so CAP's OData router handles it.
+    // ─────────────────────────────────────────────
+    app.use((req, res, next) => {
+        if (req.url.startsWith('/app/api')) {
+            req.url = req.url.slice(4);
+        }
+        // Auto-authenticate local requests with mock user (alice) when running locally (not in BTP Cloud Foundry)
+        if (!process.env.VCAP_APPLICATION) {
+            if (!req.headers.authorization) {
+                req.headers.authorization = 'Basic ' + Buffer.from('alice:alice').toString('base64');
+            }
+            if (!req.user || req.user._is_anonymous) {
+                req.user = new cds.User({
+                    id: 'alice',
+                    roles: ['TranslatorAdmin', 'TranslatorUser', 'authenticated-user', 'admin']
+                });
+            }
+        }
+        next();
+    });
+
+    // Mock SAP LREP and Launchpad Metrics endpoints for clean local preview
+    app.all('/sap/bc/lrep/flex/*', (req, res) => res.json({}));
+    app.all('/sap/bc/ui2/flp*', (req, res) => res.sendStatus(204));
+
+    // ─────────────────────────────────────────────
     // POST /api/upload-and-translate
     // Equivalent of: POST /api/mass-translate (Python)
     // Handles multipart file upload + translation

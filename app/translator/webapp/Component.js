@@ -7,9 +7,8 @@
 // =============================================================
 
 sap.ui.define([
-    "sap/fe/core/AppComponent",
-    "plm/translator/app/ext/customActions"
-], function (AppComponent, customActions) {
+    "sap/fe/core/AppComponent"
+], function (AppComponent) {
     "use strict";
 
     return AppComponent.extend("plm.translator.app.Component", {

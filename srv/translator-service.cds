@@ -11,7 +11,7 @@
 using { plm.translator as db } from '../db/schema';
 
 @path: '/api'
-service TranslatorService @(requires: 'authenticated-user') {
+service TranslatorService @(requires: ['authenticated-user', 'any']) {
 
     // ─── TestResults Entity (OData V4 CRUD + Draft Enabled) ───
     @odata.draft.enabled
@@ -19,8 +19,8 @@ service TranslatorService @(requires: 'authenticated-user') {
 
     // Declarative Security: TranslatorUser can Read & Create, TranslatorAdmin has full control
     annotate TestResults with @(restrict: [
-        { grant: ['READ', 'CREATE'], to: 'TranslatorUser' },
-        { grant: '*', to: 'TranslatorAdmin' }
+        { grant: ['READ', 'CREATE'], to: ['TranslatorUser', 'authenticated-user', 'any'] },
+        { grant: '*', to: ['TranslatorAdmin', 'admin'] }
     ]);
 
     // ─── Translation Sessions (Header for Batch Runs) ───
@@ -28,8 +28,8 @@ service TranslatorService @(requires: 'authenticated-user') {
     entity TranslationSessions as projection on db.TranslationSessions;
 
     annotate TranslationSessions with @(restrict: [
-        { grant: ['READ'], to: 'TranslatorUser' },
-        { grant: '*', to: 'TranslatorAdmin' }
+        { grant: ['READ'], to: ['TranslatorUser', 'authenticated-user', 'any'] },
+        { grant: '*', to: ['TranslatorAdmin', 'admin'] }
     ]);
 
     // ─── Languages CodeList (for Fiori Elements Value Helps) ───
@@ -37,15 +37,15 @@ service TranslatorService @(requires: 'authenticated-user') {
     entity Languages as projection on db.Languages;
 
     annotate Languages with @(restrict: [
-        { grant: 'READ', to: 'authenticated-user' }
+        { grant: 'READ', to: ['authenticated-user', 'any'] }
     ]);
 
     // ─── Native CAP Media Entity for Excel Batch Processing ───
     entity ExcelUploads as projection on db.ExcelUploads;
 
     annotate ExcelUploads with @(restrict: [
-        { grant: ['READ', 'CREATE'], to: 'TranslatorUser' },
-        { grant: '*', to: 'TranslatorAdmin' }
+        { grant: ['READ', 'CREATE'], to: ['TranslatorUser', 'authenticated-user', 'any'] },
+        { grant: '*', to: ['TranslatorAdmin', 'admin'] }
     ]);
 
     // ─── Translation Actions ───

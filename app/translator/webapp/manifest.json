@@ -28,13 +28,8 @@
                 "uri": "api/",
                 "type": "OData",
                 "settings": {
-                    "annotations": ["annotation"],
                     "odataVersion": "4.0"
                 }
-            },
-            "annotation": {
-                "type": "ODataAnnotation",
-                "uri": "api/$metadata"
             }
         }
     },
@@ -81,7 +76,19 @@
                 }
             }
         },
+        "extends": {
+            "extensions": {
+                "sap.ui.controllerExtensions": {
+                    "sap.fe.templates.ListReport.ListReportController": {
+                        "controllerName": "plm.translator.app.ext.customActions"
+                    }
+                }
+            }
+        },
         "routing": {
+            "config": {
+                "routerClass": "sap.f.routing.Router"
+            },
             "routes": [
                 {
                     "pattern": ":?query:",
@@ -102,6 +109,8 @@
                     "options": {
                         "settings": {
                             "contextPath": "/TestResults",
+                            "variantManagement": "Page",
+                            "initialLoad": "Enabled",
                             "controlConfiguration": {
                                 "@com.sap.vocabularies.UI.v1.LineItem": {
                                     "tableSettings": {
@@ -109,12 +118,12 @@
                                     },
                                     "actions": {
                                         "QuickTranslateAction": {
-                                            "press": "plm.translator.app.ext.customActions.onQuickTranslate",
+                                            "press": ".extension.plm.translator.app.ext.customActions.onQuickTranslate",
                                             "visible": true,
                                             "text": "Quick Translate"
                                         },
                                         "MassUploadAction": {
-                                            "press": "plm.translator.app.ext.customActions.onMassUpload",
+                                            "press": ".extension.plm.translator.app.ext.customActions.onMassUpload",
                                             "visible": true,
                                             "text": "Mass Translation (Excel)"
                                         }

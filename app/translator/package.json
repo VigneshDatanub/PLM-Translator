@@ -4,5 +4,17 @@
   "description": "UI5 Frontend for PLM Translator",
   "scripts": {
     "build": "node generate-preload.js && node -e \"fs.mkdirSync('dist', {recursive: true})\" && tar -a -cf dist/plmtranslatorapp.zip -C webapp *"
+  },
+  "ui5": {
+    "ui5parser": {
+      "excludeFolderPatterns": [
+        "**/Component-preload.js"
+      ]
+    },
+    "ui5linter": {
+      "jsClassExceptions": [
+        "plm.translator.app.Component-preload"
+      ]
+    }
   }
 }

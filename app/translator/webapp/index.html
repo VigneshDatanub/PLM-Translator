@@ -5,22 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PLM Translation Workbench</title>
 
+    <style>
+        html, body, #content, #container, #container-uiarea, body > div, .sapUiComponentContainer {
+            height: 100% !important;
+            width: 100% !important;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+    <link rel="stylesheet" href="css/style.css">
+
     <!-- SAPUI5 Bootstrap for Fiori Elements -->
     <script id="sap-ui-bootstrap"
         src="https://sapui5.hana.ondemand.com/resources/sap-ui-core.js"
         data-sap-ui-theme="sap_horizon"
-        data-sap-ui-libs="sap.m, sap.ui.core, sap.fe.core, sap.fe.templates, sap.ui.unified"
+        data-sap-ui-core-libs="sap.m, sap.ui.core, sap.fe.core, sap.fe.templates, sap.fe.macros, sap.ui.unified"
         data-sap-ui-resourceroots='{ "plm.translator.app": "./" }'
         data-sap-ui-compatVersion="edge"
         data-sap-ui-async="true"
-        data-sap-ui-oninit="module:sap/ui/core/ComponentSupport">
+        data-sap-ui-onInit="module:sap/ui/core/ComponentSupport">
     </script>
 </head>
-<body class="sapUiBody" id="content">
+<body class="sapUiBody sapUiSizeCompact" id="content">
     <div data-sap-ui-component
          data-name="plm.translator.app"
          data-id="container"
-         data-settings='{ "id": "plm.translator.app" }'
+         data-settings='{ "id": "plm.translator.app", "height": "100%" }'
+         data-handle-validation="true"
          style="height: 100%">
     </div>
 </body>

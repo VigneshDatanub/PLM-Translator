@@ -1,4 +1,5 @@
 sap.ui.define([
+    "sap/ui/core/mvc/ControllerExtension",
     "sap/m/Dialog",
     "sap/m/Button",
     "sap/m/VBox",
@@ -17,6 +18,7 @@ sap.ui.define([
     "sap/ui/unified/FileUploader",
     "sap/ui/model/json/JSONModel"
 ], function (
+    ControllerExtension,
     Dialog, Button, VBox, HBox, Label, TextArea, Input, Select,
     ComboBox, MultiComboBox, Text, Title, MessageToast, MessageBox,
     Item, FileUploader, JSONModel
@@ -32,7 +34,7 @@ sap.ui.define([
         return sModulePath + "/" + sClean;
     }
 
-    return {
+    return ControllerExtension.extend("plm.translator.app.ext.customActions", {
         /**
          * Quick Single Translation Action Dialog
          */
@@ -436,6 +438,6 @@ sap.ui.define([
             oDialog.setModel(oModel, "dialog");
             oDialog.open();
         }
-    };
+    });
 });
 

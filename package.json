@@ -24,11 +24,42 @@
     "deploy:local": "cds deploy --to sqlite:db/plm_translator.db",
     "deploy:hana": "cds deploy --to hana"
   },
+  "ui5": {
+    "ui5parser": {
+      "excludeFolderPatterns": [
+        "**/resources/**",
+        "**/dist/**",
+        "**/node_modules/**",
+        "**/Component-preload.js"
+      ]
+    },
+    "ui5linter": {
+      "jsClassExceptions": [
+        "plm.translator.app.Component-preload"
+      ]
+    }
+  },
   "cds": {
     "requires": {
       "db": {
         "kind": "sqlite",
         "database": "db/plm_translator.db"
+      },
+      "auth": {
+        "kind": "mocked",
+        "users": {
+          "alice": {
+            "password": "alice",
+            "roles": [ "TranslatorAdmin", "TranslatorUser", "admin", "authenticated-user" ]
+          },
+          "bob": {
+            "password": "bob",
+            "roles": [ "TranslatorUser", "authenticated-user" ]
+          },
+          "*": {
+            "roles": [ "TranslatorAdmin", "TranslatorUser", "authenticated-user" ]
+          }
+        }
       },
       "[production]": {
         "db": {
