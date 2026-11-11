@@ -15,6 +15,9 @@ using { TranslatorService as srv } from './translator-service';
 // ─── TestResults Annotations ───
 annotate srv.TestResults with @(
 
+    // Suppress standard manual create button (evaluations are created via translation actions)
+    UI.CreateHidden: true,
+
     // Header Info
     UI.HeaderInfo: {
         TypeName: 'Translation Evaluation',
@@ -38,42 +41,58 @@ annotate srv.TestResults with @(
             Value: outcome,
             Criticality: criticality,
             CriticalityRepresentation: #WithIcon,
-            Label: 'Outcome'
+            Label: 'Outcome',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '10rem' }
         },
         {
             $Type: 'UI.DataField',
             Value: accuracy,
-            Label: 'Accuracy (%)'
+            Label: 'Accuracy (%)',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '8rem' }
         },
         {
             $Type: 'UI.DataField',
             Value: targetLanguage,
-            Label: 'Target Language'
+            Label: 'Target Language',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '12rem' }
         },
         {
             $Type: 'UI.DataField',
             Value: textToTranslate,
-            Label: 'Source Text'
+            Label: 'Source Text',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '22rem' }
         },
         {
             $Type: 'UI.DataField',
             Value: translatedText,
-            Label: 'Translated Text'
+            Label: 'Translated Text',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '22rem' }
         },
         {
             $Type: 'UI.DataField',
             Value: testedBy,
-            Label: 'Evaluator'
+            Label: 'Evaluator',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '13rem' }
         },
         {
             $Type: 'UI.DataField',
             Value: createdAt,
-            Label: 'Tested On'
+            Label: 'Tested On',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '12rem' }
         },
         {
             $Type: 'UI.DataField',
             Value: observation,
-            Label: 'Observations'
+            Label: 'Observations',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '20rem' }
         }
     ],
 

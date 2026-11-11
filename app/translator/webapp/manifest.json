@@ -25,7 +25,7 @@
         },
         "dataSources": {
             "mainService": {
-                "uri": "api/",
+                "uri": "/api/",
                 "type": "OData",
                 "settings": {
                     "odataVersion": "4.0"
@@ -54,7 +54,6 @@
             "libs": {
                 "sap.m": {},
                 "sap.ui.core": {},
-                "sap.ushell": {},
                 "sap.fe.core": {},
                 "sap.fe.templates": {},
                 "sap.ui.unified": {}
@@ -87,12 +86,20 @@
         },
         "routing": {
             "config": {
-                "routerClass": "sap.f.routing.Router"
+                "routerClass": "sap.f.routing.Router",
+                "bypassed": {
+                    "target": "TestResultsList"
+                }
             },
             "routes": [
                 {
                     "pattern": ":?query:",
                     "name": "TestResultsList",
+                    "target": "TestResultsList"
+                },
+                {
+                    "pattern": "PLMTranslator-manage:?query:",
+                    "name": "TestResultsListFLP",
                     "target": "TestResultsList"
                 },
                 {
@@ -109,23 +116,44 @@
                     "options": {
                         "settings": {
                             "contextPath": "/TestResults",
+                            "entitySet": "TestResults",
                             "variantManagement": "Page",
                             "initialLoad": "Enabled",
+                            "navigation": {
+                                "TestResults": {
+                                    "detail": {
+                                        "route": "TestResultsObjectPage"
+                                    }
+                                }
+                            },
                             "controlConfiguration": {
                                 "@com.sap.vocabularies.UI.v1.LineItem": {
                                     "tableSettings": {
-                                        "type": "ResponsiveTable"
+                                        "type": "GridTable",
+                                        "selectionMode": "Multi",
+                                        "enableExport": true,
+                                        "widthIncludingColumnHeader": true
+                                    },
+                                    "columns": {
+                                        "DataField::outcome": { "width": "10rem" },
+                                        "DataField::accuracy": { "width": "8rem" },
+                                        "DataField::targetLanguage": { "width": "12rem" },
+                                        "DataField::textToTranslate": { "width": "22rem" },
+                                        "DataField::translatedText": { "width": "22rem" },
+                                        "DataField::testedBy": { "width": "13rem" },
+                                        "DataField::createdAt": { "width": "12rem" },
+                                        "DataField::observation": { "width": "20rem" }
                                     },
                                     "actions": {
                                         "QuickTranslateAction": {
                                             "press": ".extension.plm.translator.app.ext.customActions.onQuickTranslate",
                                             "visible": true,
-                                            "text": "Quick Translate"
+                                            "text": "Single Translation"
                                         },
                                         "MassUploadAction": {
                                             "press": ".extension.plm.translator.app.ext.customActions.onMassUpload",
                                             "visible": true,
-                                            "text": "Mass Translation (Excel)"
+                                            "text": "Mass Translation"
                                         }
                                     }
                                 }
@@ -139,7 +167,8 @@
                     "name": "sap.fe.templates.ObjectPage",
                     "options": {
                         "settings": {
-                            "contextPath": "/TestResults"
+                            "contextPath": "/TestResults",
+                            "entitySet": "TestResults"
                         }
                     }
                 }

@@ -15,16 +15,22 @@
     "**/gen/**": true
   },
   "ui5plugin.linter.exceptions": [
-    "**/Component-preload.js"
+    "**/lib/**"
   ],
-  "ui5plugin.linter.jsClassExceptions": [
-    "plm.translator.app.Component-preload"
+  "ui5plugin.linter.jsLinterExceptions": [
+    {
+      "className": "plm.translator.app.ext.customActions",
+      "memberName": "onQuickTranslate",
+      "applyToChildren": true
+    },
+    {
+      "className": "plm.translator.app.ext.customActions",
+      "memberName": "onMassUpload",
+      "applyToChildren": true
+    }
   ],
   "ui5.plugin.excludeFolderPatterns": [
-    "**/Component-preload.js"
-  ],
-  "ui5.plugin.jsClassExceptions": [
-    "plm.translator.app.Component-preload"
+    "**/lib/**"
   ],
   "sqltools.connections": []
 }

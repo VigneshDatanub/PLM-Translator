@@ -219,7 +219,8 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         this.before('CREATE', 'TestResults', async (req) => {
             const data = req.data;
 
-            if (!data.outcome) {
+            // Only enforce mandatory fields on active entities or when activating, not during draft initialization
+            if (data.IsActiveEntity !== false && !data.outcome) {
                 req.error(400, 'Outcome is required');
             }
 

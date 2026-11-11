@@ -3,17 +3,26 @@
   "version": "1.0.0",
   "description": "UI5 Frontend for PLM Translator",
   "scripts": {
-    "build": "node generate-preload.js && node -e \"fs.mkdirSync('dist', {recursive: true})\" && tar -a -cf dist/plmtranslatorapp.zip -C webapp *"
+    "build": "node -e \"fs.mkdirSync('dist', {recursive: true})\" && tar -a -cf dist/plmtranslatorapp.zip -C webapp *"
   },
   "ui5": {
     "ui5parser": {
       "excludeFolderPatterns": [
-        "**/Component-preload.js"
+        "**/lib/**"
       ]
     },
     "ui5linter": {
-      "jsClassExceptions": [
-        "plm.translator.app.Component-preload"
+      "jsLinterExceptions": [
+        {
+          "className": "plm.translator.app.ext.customActions",
+          "memberName": "onQuickTranslate",
+          "applyToChildren": true
+        },
+        {
+          "className": "plm.translator.app.ext.customActions",
+          "memberName": "onMassUpload",
+          "applyToChildren": true
+        }
       ]
     }
   }

@@ -26,20 +26,18 @@ sap.ui.define([
     "use strict";
 
     function getBaseUrl(sPath) {
-        var sModulePath = sap.ui.require.toUrl("plm/translator/app");
-        if (!sModulePath || sModulePath === ".") {
-            return sPath.startsWith("/") ? sPath : "/" + sPath;
-        }
         var sClean = sPath.startsWith("/") ? sPath.slice(1) : sPath;
-        return sModulePath + "/" + sClean;
+        return "/" + sClean;
     }
 
     return ControllerExtension.extend("plm.translator.app.ext.customActions", {
         /**
+         * @ui5ignore
+         * @public
          * Quick Single Translation Action Dialog
          */
         onQuickTranslate: function (oEvent) {
-            var oView = this.editFlow ? this.editFlow.getView() : null;
+            var oView = (this.base && this.base.getView) ? this.base.getView() : null;
             var oModel = new JSONModel({
                 sourceText: "",
                 targetLanguage: "de",
@@ -77,7 +75,7 @@ sap.ui.define([
                 .catch(function () {});
 
             var oDialog = new Dialog({
-                title: "Quick Single Translation & Evaluation",
+                title: "Single Translation",
                 contentWidth: "680px",
                 contentHeight: "auto",
                 resizable: true,
@@ -265,10 +263,12 @@ sap.ui.define([
         },
 
         /**
+         * @ui5ignore
+         * @public
          * Mass Translation Excel Upload Action Dialog
          */
         onMassUpload: function (oEvent) {
-            var oView = this.editFlow ? this.editFlow.getView() : null;
+            var oView = (this.base && this.base.getView) ? this.base.getView() : null;
             var oModel = new JSONModel({
                 testedBy: "Business User",
                 targetLanguages: ["de", "fr", "es"],
@@ -304,7 +304,7 @@ sap.ui.define([
             });
 
             var oDialog = new Dialog({
-                title: "Mass Translation (Excel Batch)",
+                title: "Mass Translation",
                 contentWidth: "620px",
                 resizable: true,
                 draggable: true,
@@ -322,12 +322,22 @@ sap.ui.define([
                                         icon: "sap-icon://download",
                                         type: "Transparent",
                                         press: function () {
-                                            var a = document.createElement("a");
-                                            a.href = getBaseUrl("api/download-template-excel");
-                                            a.download = "translation_template.xlsx";
-                                            document.body.appendChild(a);
-                                            a.click();
-                                            document.body.removeChild(a);
+                                            if (window.XLSX) {
+                                                var wb = window.XLSX.utils.book_new();
+                                                var wsData = [
+                                                    ["Phrase Text", "Description"],
+                                                    ["Welcome to our application", "Header greeting"],
+                                                    ["Save Changes", "Button label"],
+                                                    ["Error loading data", "Error alert"]
+                                                ];
+                                                var ws = window.XLSX.utils.aoa_to_sheet(wsData);
+                                                ws["!cols"] = [{ wch: 35 }, { wch: 25 }];
+                                                window.XLSX.utils.book_append_sheet(wb, ws, "Translations");
+                                                window.XLSX.writeFile(wb, "mass_translation_template.xlsx");
+                                                MessageToast.show("Template downloaded successfully.");
+                                            } else {
+                                                MessageBox.error("Excel export library is not loaded.");
+                                            }
                                         }
                                     })
                                 ]
@@ -383,47 +393,140 @@ sap.ui.define([
                             return;
                         }
 
+                        if (!window.XLSX) {
+                            MessageBox.error("Excel parser library is not loaded.");
+                            return;
+                        }
+
                         oDialog.setBusy(true);
-                        oModel.setProperty("/statusText", "Uploading and translating batch with Google Cloud...");
+                        oModel.setProperty("/statusText", "Reading and parsing Excel file in browser...");
 
-                        var formData = new FormData();
-                        formData.append("file", oFile);
-                        formData.append("target_languages", JSON.stringify(aTargets));
-                        formData.append("tested_by", sTester.trim());
+                        var reader = new FileReader();
+                        reader.onload = function (e) {
+                            try {
+                                var data = new Uint8Array(e.target.result);
+                                var workbook = window.XLSX.read(data, { type: "array" });
+                                var sheetName = workbook.SheetNames[0];
+                                if (!sheetName) {
+                                    oDialog.setBusy(false);
+                                    MessageBox.error("Excel file has no sheets.");
+                                    return;
+                                }
 
-                        fetch(getBaseUrl("api/upload-and-translate"), {
-                            method: "POST",
-                            body: formData
-                        })
-                        .then(function (res) { return res.json(); })
-                        .then(function (result) {
-                            oDialog.setBusy(false);
-                            if (result.success) {
-                                oDialog.close();
-                                oDialog.destroy();
-                                MessageBox.success(
-                                    "Mass Translation Completed!\n\n" +
-                                    "Total Rows Processed: " + (result.statistics ? result.statistics.totalRows : "N/A") + "\n" +
-                                    "Successful: " + (result.statistics ? result.statistics.successful : "N/A") + "\n" +
-                                    "Success Rate: " + (result.statistics ? result.statistics.successRate + "%" : "N/A") + "\n" +
-                                    "Session ID: " + (result.sessionId || "N/A"),
-                                    {
-                                        title: "Batch Translation Summary",
-                                        onClose: function () {
-                                            if (oView && oView.getModel()) {
-                                                oView.getModel().refresh();
-                                            }
-                                        }
+                                var worksheet = workbook.Sheets[sheetName];
+                                var rawData = window.XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                                if (!rawData || rawData.length === 0) {
+                                    oDialog.setBusy(false);
+                                    MessageBox.error("Excel file is empty.");
+                                    return;
+                                }
+
+                                var columns = Object.keys(rawData[0]);
+                                var possibleTextColumns = [
+                                    "Phrase Text", "phrase text", "PHRASE TEXT",
+                                    "text", "Text", "TEXT",
+                                    "content", "Content", "CONTENT",
+                                    "message", "Message", "MESSAGE"
+                                ];
+                                var textCol = null;
+                                for (var i = 0; i < possibleTextColumns.length; i++) {
+                                    if (columns.indexOf(possibleTextColumns[i]) !== -1) {
+                                        textCol = possibleTextColumns[i];
+                                        break;
                                     }
-                                );
-                            } else {
-                                MessageBox.error(result.error || "Batch translation failed.");
+                                }
+                                if (!textCol) {
+                                    textCol = columns[0];
+                                }
+
+                                var possibleDescColumns = ["description", "Description", "DESCRIPTION", "desc", "Desc", "notes", "Notes"];
+                                var descCol = null;
+                                for (var j = 0; j < possibleDescColumns.length; j++) {
+                                    if (columns.indexOf(possibleDescColumns[j]) !== -1 && possibleDescColumns[j] !== textCol) {
+                                        descCol = possibleDescColumns[j];
+                                        break;
+                                    }
+                                }
+
+                                var texts = [];
+                                for (var k = 0; k < rawData.length; k++) {
+                                    var row = rawData[k];
+                                    var src = String(row[textCol] || "").trim();
+                                    var desc = descCol && row[descCol] ? String(row[descCol]).trim() : "";
+                                    if (["nan", "none", ""].indexOf(desc.toLowerCase()) !== -1) {
+                                        desc = "";
+                                    }
+                                    if (src && ["nan", "none", ""].indexOf(src.toLowerCase()) === -1) {
+                                        texts.push({
+                                            index: k,
+                                            text: src,
+                                            description: desc
+                                        });
+                                    }
+                                }
+
+                                if (texts.length === 0) {
+                                    oDialog.setBusy(false);
+                                    MessageBox.error("No valid text rows found in Excel file.");
+                                    return;
+                                }
+
+                                oModel.setProperty("/statusText", "Calling native CAP OData action: massTranslate (" + texts.length + " texts x " + aTargets.length + " languages)...");
+
+                                fetch(getBaseUrl("api/massTranslate"), {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json"
+                                    },
+                                    body: JSON.stringify({
+                                        textsJson: JSON.stringify(texts),
+                                        targetLanguages: JSON.stringify(aTargets),
+                                        testedBy: sTester.trim()
+                                    })
+                                })
+                                .then(function (res) { return res.json(); })
+                                .then(function (resData) {
+                                    oDialog.setBusy(false);
+                                    var result = resData && resData.value ? resData.value : resData;
+                                    if (result && result.success) {
+                                        oDialog.close();
+                                        oDialog.destroy();
+                                        MessageBox.success(
+                                            "Mass Translation Completed!\n\n" +
+                                            "Total Rows Processed: " + (result.statistics ? result.statistics.totalRows : "N/A") + "\n" +
+                                            "Successful: " + (result.statistics ? result.statistics.successful : "N/A") + "\n" +
+                                            "Success Rate: " + (result.statistics ? result.statistics.successRate + "%" : "N/A") + "\n" +
+                                            "Session ID: " + (result.sessionId || "N/A"),
+                                            {
+                                                title: "Batch Translation Summary",
+                                                onClose: function () {
+                                                    if (oView && oView.getModel()) {
+                                                        oView.getModel().refresh();
+                                                    }
+                                                }
+                                            }
+                                        );
+                                    } else {
+                                        MessageBox.error((result && result.error) || "Batch translation failed.");
+                                    }
+                                })
+                                .catch(function (fetchErr) {
+                                    oDialog.setBusy(false);
+                                    MessageBox.error("Request error: " + fetchErr.message);
+                                });
+
+                            } catch (parseErr) {
+                                oDialog.setBusy(false);
+                                MessageBox.error("Failed to parse Excel file: " + parseErr.message);
                             }
-                        })
-                        .catch(function (err) {
+                        };
+
+                        reader.onerror = function (readErr) {
                             oDialog.setBusy(false);
-                            MessageBox.error("Upload error: " + err.message);
-                        });
+                            MessageBox.error("File reading error: " + readErr.message);
+                        };
+
+                        reader.readAsArrayBuffer(oFile);
                     }
                 }),
                 endButton: new Button({

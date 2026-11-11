@@ -30,12 +30,21 @@
         "**/resources/**",
         "**/dist/**",
         "**/node_modules/**",
-        "**/Component-preload.js"
+        "**/lib/**"
       ]
     },
     "ui5linter": {
-      "jsClassExceptions": [
-        "plm.translator.app.Component-preload"
+      "jsLinterExceptions": [
+        {
+          "className": "plm.translator.app.ext.customActions",
+          "memberName": "onQuickTranslate",
+          "applyToChildren": true
+        },
+        {
+          "className": "plm.translator.app.ext.customActions",
+          "memberName": "onMassUpload",
+          "applyToChildren": true
+        }
       ]
     }
   },
@@ -56,9 +65,7 @@
             "password": "bob",
             "roles": [ "TranslatorUser", "authenticated-user" ]
           },
-          "*": {
-            "roles": [ "TranslatorAdmin", "TranslatorUser", "authenticated-user" ]
-          }
+          "*": true
         }
       },
       "[production]": {

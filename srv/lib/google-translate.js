@@ -14,29 +14,6 @@ const path = require('path');
 const GOOGLE_TRANSLATE_BASE_URL = 'https://translation.googleapis.com/language/translate/v2';
 const GOOGLE_LANGUAGES_URL = 'https://translation.googleapis.com/language/translate/v2/languages';
 
-const CACHE_FILE_PATH = path.resolve(__dirname, 'google-languages-cache.json');
-
-/**
- * Load pre-cached Google languages from disk if available.
- */
-function loadLocalLanguagesCache() {
-    try {
-        if (fs.existsSync(CACHE_FILE_PATH)) {
-            const raw = fs.readFileSync(CACHE_FILE_PATH, 'utf8');
-            const data = JSON.parse(raw);
-            if (Array.isArray(data) && data.length > 0) {
-                return data;
-            }
-        }
-    } catch (e) {
-        console.warn('[GoogleTranslate] Warning loading local languages cache:', e.message);
-    }
-    return null;
-}
-
-// Cache for supported languages to avoid redundant Google API billing/latency
-let languagesCache = loadLocalLanguagesCache();
-
 /**
  * Robust API key loader: Checks process.env, cds.env, and .env file directly.
  */
@@ -145,67 +122,37 @@ function httpsRequest(url, options = {}, body = null) {
 /**
  * Get supported languages dynamically from Google Cloud Translation API v2.
  * Includes both the language code and human-readable English name: "Name (code)".
- * Resiliently serves from cache if network is slow or temporarily unreachable.
+ * Always fetched live from Google Cloud Translation API with no local disk cache.
  */
-async function getSupportedLanguages(forceRefresh = false) {
-    if (!forceRefresh && languagesCache && languagesCache.length > 0) {
-        return languagesCache;
-    }
-
+async function getSupportedLanguages() {
     const apiKey = getApiKey();
     if (!apiKey || apiKey === 'YOUR_GOOGLE_API_KEY_HERE') {
-        if (languagesCache && languagesCache.length > 0) {
-            return languagesCache;
-        }
         throw new Error('Google Cloud Translation API key is not configured. Please set GOOGLE_TRANSLATE_API_KEY in .env file.');
     }
 
-    try {
-        const url = `${GOOGLE_LANGUAGES_URL}?key=${apiKey}&target=en`;
-        const data = await httpsRequest(url, { method: 'GET', timeout: 25000 });
+    const url = `${GOOGLE_LANGUAGES_URL}?key=${apiKey}&target=en`;
+    const data = await httpsRequest(url, { method: 'GET', timeout: 25000 });
 
-        if (data && data.data && Array.isArray(data.data.languages)) {
-            const languages = data.data.languages
-                .filter(lang => lang && lang.language)
-                .map(lang => {
-                    const code = lang.language;
-                    const name = lang.name || lang.language;
-                    return {
-                        key: code,
-                        code: code,
-                        name: name,
-                        text: `${name} (${code})`
-                    };
-                })
-                .sort((a, b) => a.name.localeCompare(b.name));
+    if (data && data.data && Array.isArray(data.data.languages)) {
+        const languages = data.data.languages
+            .filter(lang => lang && lang.language)
+            .map(lang => {
+                const code = lang.language;
+                const name = lang.name || lang.language;
+                return {
+                    key: code,
+                    code: code,
+                    name: name,
+                    text: `${name} (${code})`
+                };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
 
-            console.log(`[GoogleTranslate] Successfully loaded ${languages.length} dynamic languages from Google API with language codes`);
-            languagesCache = languages;
-
-            // Persist to cache file asynchronously
-            try {
-                fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(languages, null, 2), 'utf8');
-            } catch (e) {
-                // Ignore file write error
-            }
-
-            return languagesCache;
-        }
-    } catch (error) {
-        console.warn('[GoogleTranslate] Warning fetching dynamic languages from Google:', error.message);
-        if (languagesCache && languagesCache.length > 0) {
-            console.log(`[GoogleTranslate] Falling back to ${languagesCache.length} cached Google languages`);
-            return languagesCache;
-        }
-        const fallback = loadLocalLanguagesCache();
-        if (fallback && fallback.length > 0) {
-            languagesCache = fallback;
-            return languagesCache;
-        }
-        throw error;
+        console.log(`[GoogleTranslate] Successfully loaded ${languages.length} dynamic languages live from Google API`);
+        return languages;
     }
 
-    return languagesCache || [];
+    throw new Error('Invalid response received from Google Cloud Translation API');
 }
 
 /**

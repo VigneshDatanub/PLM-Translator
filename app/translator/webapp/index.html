@@ -3,10 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PLM Translation Workbench</title>
+    <title>PLM Translator</title>
 
     <style>
-        html, body, #content, #container, #container-uiarea, body > div, .sapUiComponentContainer {
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        #app-container,
+        #app-container > .sapUiComponentContainer {
             height: 100% !important;
             width: 100% !important;
             margin: 0;
@@ -14,13 +22,29 @@
         }
     </style>
 
-    <link rel="stylesheet" href="css/style.css">
+
+    <!-- SheetJS for pure client-side Excel parsing & template generation (CDN) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+    <script>
+        (function() {
+            var sHash = window.location.hash || "";
+            // If URL contains transient draft ID ($uid), FLP semantic intent, or fake app state, immediately redirect to clean base URL
+            if (sHash && (
+                sHash.indexOf("uid") !== -1 ||
+                sHash.indexOf("PLMTranslator-manage") !== -1 ||
+                sHash.indexOf("FAKE_APP_STATE") !== -1
+            )) {
+                window.location.replace(window.location.pathname);
+            }
+        })();
+    </script>
 
     <!-- SAPUI5 Bootstrap for Fiori Elements -->
     <script id="sap-ui-bootstrap"
         src="https://sapui5.hana.ondemand.com/resources/sap-ui-core.js"
         data-sap-ui-theme="sap_horizon"
-        data-sap-ui-core-libs="sap.m, sap.ui.core, sap.fe.core, sap.fe.templates, sap.fe.macros, sap.ui.unified"
+        data-sap-ui-libs="sap.m, sap.ui.core, sap.fe.core, sap.fe.templates, sap.ui.unified"
         data-sap-ui-resourceroots='{ "plm.translator.app": "./" }'
         data-sap-ui-compatVersion="edge"
         data-sap-ui-async="true"
@@ -29,11 +53,13 @@
 </head>
 <body class="sapUiBody sapUiSizeCompact" id="content">
     <div data-sap-ui-component
+         id="app-container"
          data-name="plm.translator.app"
          data-id="container"
-         data-settings='{ "id": "plm.translator.app", "height": "100%" }'
+         data-settings='{ "id": "plm.translator.app" }'
+         data-height="100%"
          data-handle-validation="true"
-         style="height: 100%">
+         style="height: 100%; width: 100%">
     </div>
 </body>
 </html>

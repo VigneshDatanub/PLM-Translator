@@ -6,6 +6,9 @@ gen/
 .cdsrc-private.json
 default-*.json
 *.sqlite
+*.sqlite-*
+*.db-shm
+*.db-wal
 
 # MTA
 mta_archives/
@@ -18,3 +21,6 @@ mta_archives/
 # @cap-js/cds-typer
 @cds-models
 .env
+dist/
+**/dist/
+resources/
