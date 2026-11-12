@@ -63,6 +63,21 @@ entity TestResults : cuid, managed {
 
     // Virtual criticality calculated on read for Fiori status colors (1=Red, 2=Orange, 3=Green)
     virtual criticality : Integer  @title: 'Criticality';
+
+    // Composition of transaction audit trail
+    transactions    : Composition of many TestResultTransactions on transactions.result = $self;
+}
+
+/**
+ * Transaction history / Audit log for TestResults
+ */
+entity TestResultTransactions : cuid, managed {
+    result          : Association to TestResults;
+    action          : String(50)   @title: 'Action';
+    performedBy     : String(100)  @title: 'Performed By';
+    outcome         : String(50)   @title: 'Outcome';
+    accuracy        : Double       @title: 'Accuracy (%)';
+    details         : String(1000) @title: 'Transaction Details';
 }
 
 /**

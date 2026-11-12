@@ -15,8 +15,9 @@ using { TranslatorService as srv } from './translator-service';
 // ─── TestResults Annotations ───
 annotate srv.TestResults with @(
 
-    // Suppress standard manual create button (evaluations are created via translation actions)
+    // Suppress standard manual create and delete buttons (neither User nor Admin can delete)
     UI.CreateHidden: true,
+    UI.DeleteHidden: true,
 
     // Header Info
     UI.HeaderInfo: {
@@ -34,8 +35,14 @@ annotate srv.TestResults with @(
         createdAt
     ],
 
-    // List Report Table Columns
+    // List Report Table Columns & Actions
     UI.LineItem: [
+        {
+            $Type: 'UI.DataFieldForAction',
+            Action: 'TranslatorService.EntityContainer/singleTranslate',
+            Label: 'Single Translation',
+            ![@UI.Importance]: #High
+        },
         {
             $Type: 'UI.DataField',
             Value: outcome,
@@ -76,7 +83,7 @@ annotate srv.TestResults with @(
         {
             $Type: 'UI.DataField',
             Value: testedBy,
-            Label: 'Evaluator',
+            Label: 'Tested By',
             ![@UI.Importance]: #High,
             ![@HTML5.CssDefaults]: { width: '13rem' }
         },
@@ -138,6 +145,12 @@ annotate srv.TestResults with @(
             ID: 'GeneralInfoFacet',
             Label: 'Audit & Session Information',
             Target: '@UI.FieldGroup#GeneralInfo'
+        },
+        {
+            $Type: 'UI.ReferenceFacet',
+            ID: 'TransactionsFacet',
+            Label: 'Transaction History',
+            Target: 'transactions/@UI.LineItem'
         }
     ],
 
@@ -167,6 +180,63 @@ annotate srv.TestResults with @(
             { Value: createdBy, Label: 'Created By User' }
         ]
     }
+);
+
+annotate srv.TestResults with {
+    createdAt   @(UI.HiddenFilter: false, Common.Label: 'Tested On');
+    criticality @(UI.HiddenFilter: true);
+    ID          @(UI.HiddenFilter: true);
+    session     @(UI.HiddenFilter: true);
+};
+
+// ─── TestResultTransactions Annotations ───
+annotate srv.TestResultTransactions with @(
+    UI.CreateHidden: true,
+    UI.DeleteHidden: true,
+    UI.LineItem: [
+        {
+            $Type: 'UI.DataField',
+            Value: createdAt,
+            Label: 'Transaction Date & Time',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '13rem' }
+        },
+        {
+            $Type: 'UI.DataField',
+            Value: action,
+            Label: 'Action',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '13rem' }
+        },
+        {
+            $Type: 'UI.DataField',
+            Value: performedBy,
+            Label: 'Performed By',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '11rem' }
+        },
+        {
+            $Type: 'UI.DataField',
+            Value: outcome,
+            Label: 'Outcome',
+            ![@UI.Importance]: #Medium,
+            ![@HTML5.CssDefaults]: { width: '8rem' }
+        },
+        {
+            $Type: 'UI.DataField',
+            Value: accuracy,
+            Label: 'Accuracy (%)',
+            ![@UI.Importance]: #Medium,
+            ![@HTML5.CssDefaults]: { width: '8rem' }
+        },
+        {
+            $Type: 'UI.DataField',
+            Value: details,
+            Label: 'Transaction Details / Changes',
+            ![@UI.Importance]: #High,
+            ![@HTML5.CssDefaults]: { width: '22rem' }
+        }
+    ]
 );
 
 // ─── Value Help for Languages ───
@@ -203,4 +273,12 @@ annotate srv.TranslationSessions with @(
         { $Type: 'UI.DataField', Value: createdAt, Label: 'Created On' }
     ]
 );
+
+// ─── Action Side Effects: Refresh TestResults Table after Single Translation ───
+annotate srv.singleTranslate with @(
+    Common.SideEffects: {
+        TargetEntities: [ '/TranslatorService.EntityContainer/TestResults' ]
+    }
+);
+
 

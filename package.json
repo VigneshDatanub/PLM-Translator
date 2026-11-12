@@ -37,11 +37,6 @@
       "jsLinterExceptions": [
         {
           "className": "plm.translator.app.ext.customActions",
-          "memberName": "onQuickTranslate",
-          "applyToChildren": true
-        },
-        {
-          "className": "plm.translator.app.ext.customActions",
           "memberName": "onMassUpload",
           "applyToChildren": true
         }
@@ -55,7 +50,8 @@
         "database": "db/plm_translator.db"
       },
       "auth": {
-        "kind": "mocked",
+        "kind": "basic",
+        "login_required": true,
         "users": {
           "alice": {
             "password": "alice",
@@ -64,8 +60,7 @@
           "bob": {
             "password": "bob",
             "roles": [ "TranslatorUser", "authenticated-user" ]
-          },
-          "*": true
+          }
         }
       },
       "[production]": {
