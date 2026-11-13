@@ -5,9 +5,15 @@ sap.ui.define([
     "sap/m/VBox",
     "sap/m/HBox",
     "sap/m/Label",
-    "sap/m/MultiComboBox",
+    "sap/m/TextArea",
     "sap/m/Input",
+    "sap/m/Select",
+    "sap/m/ComboBox",
+    "sap/m/MultiComboBox",
     "sap/m/Text",
+    "sap/m/Title",
+    "sap/m/Toolbar",
+    "sap/m/ToolbarSpacer",
     "sap/m/MessageToast",
     "sap/m/MessageBox",
     "sap/ui/core/Item",
@@ -15,7 +21,8 @@ sap.ui.define([
     "sap/ui/model/json/JSONModel"
 ], function (
     ControllerExtension,
-    Dialog, Button, VBox, HBox, Label, MultiComboBox, Input, Text,
+    Dialog, Button, VBox, HBox, Label, TextArea, Input, Select,
+    ComboBox, MultiComboBox, Text, Title, Toolbar, ToolbarSpacer,
     MessageToast, MessageBox, Item, FileUploader, JSONModel
 ) {
     "use strict";
@@ -25,7 +32,318 @@ sap.ui.define([
         return "/" + sClean;
     }
 
+    function applyClass(oControl, sClasses) {
+        if (oControl && sClasses) {
+            sClasses.split(" ").forEach(function (c) {
+                if (c && c.trim()) {
+                    oControl.addStyleClass(c.trim());
+                }
+            });
+        }
+        return oControl;
+    }
+
     return ControllerExtension.extend("plm.translator.app.ext.customActions", {
+        /**
+         * @ui5ignore
+         * @public
+         * Quick Single Translation Action Dialog
+         * Allows user to translate via Google Cloud, review/edit the output,
+         * adjust accuracy rating, and save to Test Results.
+         */
+        onQuickTranslate: function (oEvent) {
+            var oView = (this.base && this.base.getView) ? this.base.getView() : null;
+            var oModel = new JSONModel({
+                sourceText: "",
+                targetLanguage: "de",
+                translatedText: "",
+                detectedLanguage: "auto",
+                outcome: "Success",
+                accuracy: 95,
+                observation: "",
+                testedBy: "Business User",
+                isTranslating: false,
+                isTranslated: false,
+                languages: []
+            });
+
+            // 1. Load languages dynamically from Google Cloud Translation API
+            fetch(getBaseUrl("api/getLanguages()"))
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    var aLangs = (data && data.value) ? data.value : (Array.isArray(data) ? data : []);
+                    oModel.setProperty("/languages", aLangs);
+                })
+                .catch(function (e) {
+                    console.warn("[QuickTranslate] Could not load languages dynamically:", e);
+                });
+
+            // 2. Fetch user info for testedBy default
+            fetch(getBaseUrl("api/getUserInfo()"))
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    var u = (data && data.value) ? data.value : data;
+                    if (u && u.user) {
+                        oModel.setProperty("/testedBy", u.user);
+                    }
+                })
+                .catch(function () {});
+
+            var oDialog = new Dialog({
+                title: "Single Translation",
+                customHeader: new Toolbar({
+                    content: [
+                        applyClass(new Title({ text: "Single Translation", level: "H5" }), "sapUiSmallMarginBegin"),
+                        new ToolbarSpacer(),
+                        new Button({
+                            icon: "sap-icon://decline",
+                            type: "Transparent",
+                            tooltip: "Close",
+                            press: function () {
+                                oDialog.close();
+                            }
+                        })
+                    ]
+                }),
+                contentWidth: "760px",
+                resizable: true,
+                draggable: true,
+                afterClose: function () {
+                    oDialog.destroy();
+                },
+                content: [
+                    new VBox({
+                        width: "100%",
+                        items: [
+                            applyClass(new Label({ text: "Target Language:", required: true }), "sapUiTinyMarginBottom"),
+                            new ComboBox({
+                                width: "100%",
+                                selectedKey: "{dialog>/targetLanguage}",
+                                items: {
+                                    path: "dialog>/languages",
+                                    template: new Item({ key: "{dialog>code}", text: "{dialog>text}" })
+                                }
+                            }),
+
+                            applyClass(new Label({ text: "Source Text to Translate:", required: true }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
+                            new TextArea({
+                                width: "100%",
+                                rows: 3,
+                                value: "{dialog>/sourceText}",
+                                placeholder: "Enter source text to translate..."
+                            }),
+
+                            new HBox({
+                                justifyContent: "End",
+                                items: [
+                                    applyClass(new Button({
+                                        text: "Translate via Google Cloud",
+                                        type: "Emphasized",
+                                        icon: "sap-icon://translate",
+                                        busy: "{dialog>/isTranslating}",
+                                        press: function () {
+                                            var sText = oModel.getProperty("/sourceText");
+                                            var sLang = oModel.getProperty("/targetLanguage");
+                                            if (!sText || !sText.trim()) {
+                                                MessageToast.show("Please enter source text to translate.");
+                                                return;
+                                            }
+                                            if (!sLang || !sLang.trim()) {
+                                                MessageToast.show("Please select a target language.");
+                                                return;
+                                            }
+
+                                            oModel.setProperty("/isTranslating", true);
+                                            fetch(getBaseUrl("api/translate"), {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ text: sText.trim(), targetLanguage: sLang.trim() })
+                                            })
+                                            .then(function (res) { return res.json(); })
+                                            .then(function (resData) {
+                                                oModel.setProperty("/isTranslating", false);
+                                                var res = (resData && resData.value) ? resData.value : resData;
+                                                if (res && res.success) {
+                                                    oModel.setProperty("/translatedText", res.translatedText);
+                                                    oModel.setProperty("/detectedLanguage", res.sourceLanguage || "auto");
+                                                    oModel.setProperty("/isTranslated", true);
+                                                    if (!oModel.getProperty("/outcome")) {
+                                                        oModel.setProperty("/outcome", "Success");
+                                                    }
+                                                    if (oModel.getProperty("/accuracy") === null || oModel.getProperty("/accuracy") === undefined || oModel.getProperty("/accuracy") === "") {
+                                                        oModel.setProperty("/accuracy", 95);
+                                                    }
+                                                    MessageToast.show("Translation completed! You can now review and edit the output or adjust accuracy.");
+                                                } else {
+                                                    MessageBox.error((res && res.error) || "Translation failed");
+                                                }
+                                            })
+                                            .catch(function (err) {
+                                                oModel.setProperty("/isTranslating", false);
+                                                MessageBox.error("Network error during translation: " + err.message);
+                                            });
+                                        }
+                                    }), "sapUiTinyMarginTop")
+                                ]
+                            }),
+
+                            applyClass(new Label({ text: "Translated Result:" }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
+                            new TextArea({
+                                width: "100%",
+                                rows: 3,
+                                editable: true,
+                                value: "{dialog>/translatedText}",
+                                placeholder: "Translated result will appear here. You can manually edit it after translation..."
+                            }),
+
+                            applyClass(new Title({ text: "Record Test Quality & Evaluation", level: "H5" }), "sapUiMediumMarginTop sapUiTinyMarginBottom"),
+                            new HBox({
+                                width: "100%",
+                                justifyContent: "SpaceBetween",
+                                items: [
+                                    applyClass(new VBox({
+                                        width: "48%",
+                                        items: [
+                                            applyClass(new Label({ text: "Outcome:" }), "sapUiTinyMarginBottom"),
+                                            new Select({
+                                                width: "100%",
+                                                selectedKey: "{dialog>/outcome}",
+                                                items: [
+                                                    new Item({ key: "Success", text: "Success (Accurate)" }),
+                                                    new Item({ key: "Partial", text: "Partial (Needs Edit)" }),
+                                                    new Item({ key: "Failure", text: "Failure (Inaccurate)" })
+                                                ]
+                                            })
+                                        ]
+                                    }), "sapUiSmallMarginEnd"),
+                                    new VBox({
+                                        width: "48%",
+                                        items: [
+                                            applyClass(new Label({ text: "Accuracy Rating (0-100%):" }), "sapUiTinyMarginBottom"),
+                                            new Input({
+                                                width: "100%",
+                                                type: "Number",
+                                                value: "{dialog>/accuracy}",
+                                                placeholder: "95"
+                                            })
+                                        ]
+                                    })
+                                ]
+                            }),
+
+                            applyClass(new Label({ text: "Evaluator / Tested By:" }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
+                            new Input({
+                                width: "100%",
+                                value: "{dialog>/testedBy}",
+                                placeholder: "Enter evaluator name"
+                            }),
+
+                            applyClass(new Label({ text: "Observations & Notes:" }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
+                            new TextArea({
+                                width: "100%",
+                                rows: 2,
+                                value: "{dialog>/observation}",
+                                placeholder: "Optional evaluation notes..."
+                            })
+                        ]
+                    })
+                ],
+                beginButton: new Button({
+                    text: "Save to Test Results",
+                    type: "Accept",
+                    icon: "sap-icon://save",
+                    press: function () {
+                        var sSrc = oModel.getProperty("/sourceText");
+                        var sTrans = oModel.getProperty("/translatedText");
+
+                        if (!sSrc || !sSrc.trim()) {
+                            MessageToast.show("Please enter source text and translate before saving.");
+                            return;
+                        }
+                        if (!sTrans || !sTrans.trim()) {
+                            MessageToast.show("Please perform translation or enter translated text before saving.");
+                            return;
+                        }
+
+                        var accVal = oModel.getProperty("/accuracy");
+                        var parsedAcc = (accVal !== null && accVal !== undefined && accVal !== "") ? parseFloat(accVal) : 95;
+                        if (isNaN(parsedAcc) || parsedAcc < 0 || parsedAcc > 100) {
+                            MessageToast.show("Accuracy rating must be between 0 and 100.");
+                            return;
+                        }
+
+                        var sTargetLang = oModel.getProperty("/targetLanguage");
+                        var aLangs = oModel.getProperty("/languages") || [];
+                        var sLangText = sTargetLang;
+                        for (var l = 0; l < aLangs.length; l++) {
+                            if (aLangs[l].code === sTargetLang) {
+                                sLangText = aLangs[l].text || aLangs[l].name || sTargetLang;
+                                break;
+                            }
+                        }
+
+                        oDialog.setBusy(true);
+                        var payload = {
+                            outcome: oModel.getProperty("/outcome") || "Success",
+                            accuracy: parsedAcc,
+                            observation: (oModel.getProperty("/observation") || "").trim(),
+                            testedBy: (oModel.getProperty("/testedBy") || "Business User").trim(),
+                            textToTranslate: sSrc.trim(),
+                            translatedText: sTrans.trim(),
+                            sourceLanguage: oModel.getProperty("/detectedLanguage") || "auto",
+                            targetLanguage: sLangText
+                        };
+
+                        fetch(getBaseUrl("api/TestResults"), {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload)
+                        })
+                        .then(function (res) {
+                            if (!res.ok) {
+                                return res.json().then(function (errData) {
+                                    throw new Error((errData.error && errData.error.message) || res.statusText);
+                                });
+                            }
+                            return res.json();
+                        })
+                        .then(function (saved) {
+                            oDialog.setBusy(false);
+                            oDialog.close();
+                            MessageToast.show("Test evaluation logged successfully!");
+
+                            // Refresh current FE view binding if available
+                            if (oView && oView.getModel()) {
+                                oView.getModel().refresh();
+                            }
+                            try {
+                                var oTable = oView.byId("fe::table::TestResults::LineItem") || oView.byId("fe::table::TestResults::LineItem-innerTable");
+                                if (oTable && oTable.getBinding && oTable.getBinding("items")) {
+                                    oTable.getBinding("items").refresh();
+                                } else if (oTable && oTable.getBinding && oTable.getBinding("rows")) {
+                                    oTable.getBinding("rows").refresh();
+                                }
+                            } catch (refreshErr) {}
+                        })
+                        .catch(function (err) {
+                            oDialog.setBusy(false);
+                            MessageBox.error("Failed to save evaluation: " + err.message);
+                        });
+                    }
+                }),
+                endButton: new Button({
+                    text: "Cancel",
+                    press: function () {
+                        oDialog.close();
+                    }
+                })
+            });
+
+            oDialog.addStyleClass("sapUiContentPadding sapUiResponsivePadding");
+            oDialog.setModel(oModel, "dialog");
+            oDialog.open();
+        },
+
         /**
          * @ui5ignore
          * @public
@@ -67,16 +385,51 @@ sap.ui.define([
                 width: "100%"
             });
 
+            var oMultiCombo = new MultiComboBox({
+                width: "100%",
+                selectedKeys: "{dialog>/targetLanguages}",
+                items: {
+                    path: "dialog>/languages",
+                    template: new Item({ key: "{dialog>code}", text: "{dialog>text}" })
+                },
+                selectionChange: function (oEvent) {
+                    var aSelected = oEvent.getSource().getSelectedKeys();
+                    oModel.setProperty("/targetLanguages", aSelected);
+                },
+                selectionFinish: function (oEvent) {
+                    var aSelected = oEvent.getSource().getSelectedKeys();
+                    oModel.setProperty("/targetLanguages", aSelected);
+                }
+            });
+
             var oDialog = new Dialog({
                 title: "Mass Translation",
-                contentWidth: "620px",
+                customHeader: new Toolbar({
+                    content: [
+                        applyClass(new Title({ text: "Mass Translation", level: "H5" }), "sapUiSmallMarginBegin"),
+                        new ToolbarSpacer(),
+                        new Button({
+                            icon: "sap-icon://decline",
+                            type: "Transparent",
+                            tooltip: "Close",
+                            press: function () {
+                                oDialog.close();
+                            }
+                        })
+                    ]
+                }),
+                contentWidth: "760px",
                 resizable: true,
                 draggable: true,
+                afterClose: function () {
+                    oDialog.destroy();
+                },
                 content: [
                     new VBox({
-                        class: "sapUiMediumMargin",
+                        width: "100%",
                         items: [
                             new HBox({
+                                width: "100%",
                                 justifyContent: "SpaceBetween",
                                 alignItems: "Center",
                                 items: [
@@ -106,28 +459,21 @@ sap.ui.define([
                                     })
                                 ]
                             }),
-                            oUploader,
+                            applyClass(oUploader, "sapUiTinyMarginTop"),
 
-                            new Label({ text: "Target Languages (Multi-Select):", required: true, class: "sapUiSmallMarginTop" }),
-                            new MultiComboBox({
-                                width: "100%",
-                                selectedKeys: "{dialog>/targetLanguages}",
-                                items: {
-                                    path: "dialog>/languages",
-                                    template: new Item({ key: "{dialog>code}", text: "{dialog>text}" })
-                                }
-                            }),
+                            applyClass(new Label({ text: "Target Languages (Multi-Select):", required: true }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
+                            oMultiCombo,
 
-                            new Label({ text: "Evaluator / Tested By:", required: true, class: "sapUiSmallMarginTop" }),
+                            applyClass(new Label({ text: "Evaluator / Tested By:", required: true }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
                             new Input({
+                                width: "100%",
                                 value: "{dialog>/testedBy}",
                                 placeholder: "Enter evaluator name"
                             }),
 
-                            new Text({
-                                text: "{dialog>/statusText}",
-                                class: "sapUiSmallMarginTop"
-                            })
+                            applyClass(new Text({
+                                text: "{dialog>/statusText}"
+                            }), "sapUiSmallMarginTop")
                         ]
                     })
                 ],
@@ -145,7 +491,10 @@ sap.ui.define([
                             return;
                         }
 
-                        var aTargets = oModel.getProperty("/targetLanguages");
+                        var aTargets = oMultiCombo.getSelectedKeys();
+                        if (!aTargets || aTargets.length === 0) {
+                            aTargets = oModel.getProperty("/targetLanguages");
+                        }
                         if (!aTargets || aTargets.length === 0) {
                             MessageToast.show("Please select at least one target language.");
                             return;
@@ -254,7 +603,6 @@ sap.ui.define([
                                     var result = resData && resData.value ? resData.value : resData;
                                     if (result && result.success) {
                                         oDialog.close();
-                                        oDialog.destroy();
                                         MessageBox.success(
                                             "Mass Translation Completed!\n\n" +
                                             "Total Rows Processed: " + (result.statistics ? result.statistics.totalRows : "N/A") + "\n" +
@@ -297,11 +645,11 @@ sap.ui.define([
                     text: "Close",
                     press: function () {
                         oDialog.close();
-                        oDialog.destroy();
                     }
                 })
             });
 
+            oDialog.addStyleClass("sapUiContentPadding sapUiResponsivePadding");
             oDialog.setModel(oModel, "dialog");
             oDialog.open();
         }

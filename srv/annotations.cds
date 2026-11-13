@@ -38,12 +38,6 @@ annotate srv.TestResults with @(
     // List Report Table Columns & Actions
     UI.LineItem: [
         {
-            $Type: 'UI.DataFieldForAction',
-            Action: 'TranslatorService.EntityContainer/singleTranslate',
-            Label: 'Single Translation',
-            ![@UI.Importance]: #High
-        },
-        {
             $Type: 'UI.DataField',
             Value: outcome,
             Criticality: criticality,
@@ -274,8 +268,9 @@ annotate srv.TranslationSessions with @(
     ]
 );
 
-// ─── Action Side Effects: Refresh TestResults Table after Single Translation ───
+// ─── Action Side Effects & Visibility for Single Translation ───
 annotate srv.singleTranslate with @(
+    UI.Hidden: true,
     Common.SideEffects: {
         TargetEntities: [ '/TranslatorService.EntityContainer/TestResults' ]
     }

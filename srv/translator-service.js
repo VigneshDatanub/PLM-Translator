@@ -346,6 +346,10 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         this.before('CREATE', 'TestResults', async (req) => {
             const data = req.data;
 
+            if (!data.ID) {
+                data.ID = uuidv4();
+            }
+
             // Only enforce mandatory fields on active entities or when activating, not during draft initialization
             if (data.IsActiveEntity !== false && !data.outcome) {
                 req.error(400, 'Outcome is required');
@@ -355,6 +359,8 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                 const accuracy = parseFloat(data.accuracy);
                 if (isNaN(accuracy) || accuracy < 0 || accuracy > 100) {
                     req.error(400, 'Accuracy must be between 0 and 100');
+                } else {
+                    data.accuracy = accuracy;
                 }
             }
 

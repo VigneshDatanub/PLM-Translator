@@ -146,6 +146,11 @@
                                         "DataField::observation": { "width": "20rem" }
                                     },
                                     "actions": {
+                                        "QuickTranslateAction": {
+                                            "press": ".extension.plm.translator.app.ext.customActions.onQuickTranslate",
+                                            "visible": true,
+                                            "text": "Single Translation"
+                                        },
                                         "MassUploadAction": {
                                             "press": ".extension.plm.translator.app.ext.customActions.onMassUpload",
                                             "visible": true,
