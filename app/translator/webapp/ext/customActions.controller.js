@@ -29,6 +29,10 @@ sap.ui.define([
 
     function getBaseUrl(sPath) {
         var sClean = sPath.startsWith("/") ? sPath.slice(1) : sPath;
+        var sRoot = sap.ui.require.toUrl("plm/translator/app");
+        if (sRoot && sRoot !== "." && sRoot !== "./") {
+            return sRoot.replace(/\/$/, "") + "/" + sClean;
+        }
         return "/" + sClean;
     }
 

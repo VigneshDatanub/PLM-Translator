@@ -1,6 +1,6 @@
 _schema-version: '3.1'
 ID: plm-translator-capm
-version: 1.0.0
+version: 1.0.5
 description: "PLM Translator on SAP BTP CAP with Google Cloud Translation API and SAP HANA Cloud"
 parameters:
   enable-parallel-deployments: true
@@ -106,37 +106,17 @@ modules:
               ServiceInstanceName: plm-translator-html5-repo-host
               ServiceKeyName: plm-translator-html5-repo-host-key
               sap.cloud.service: plmtranslator
-            - Authentication: OAuth2UserTokenExchange
-              Name: plm_translator_uaa
-              ServiceInstanceName: plm-translator-auth
-              ServiceKeyName: plm-translator-auth-key
-              sap.cloud.service: plmtranslator
-            - Authentication: OAuth2UserTokenExchange
-              Name: srv-api
-              TokenServiceInstanceName: plm-translator-auth
-              TokenServiceKeyName: plm-translator-auth-key
-              URL: ~{srv-api/srv-url}
-              sap.cloud.service: plmtranslator
+              Authentication: OAuth2UserTokenExchange
               HTML5.DynamicDestination: true
-              HTML5.ForwardAuthToken: true
-        instance:
-          existing_destinations_policy: update
-          destinations:
-            - Name: plm_translator_html_repo_host
-              ServiceInstanceName: plm-translator-html5-repo-host
-              ServiceKeyName: plm-translator-html5-repo-host-key
-              sap.cloud.service: plmtranslator
             - Authentication: OAuth2UserTokenExchange
               Name: plm_translator_uaa
               ServiceInstanceName: plm-translator-auth
               ServiceKeyName: plm-translator-auth-key
-              sap.cloud.service: plmtranslator
             - Authentication: OAuth2UserTokenExchange
               Name: srv-api
               TokenServiceInstanceName: plm-translator-auth
               TokenServiceKeyName: plm-translator-auth-key
               URL: ~{srv-api/srv-url}
-              sap.cloud.service: plmtranslator
               HTML5.DynamicDestination: true
               HTML5.ForwardAuthToken: true
 
