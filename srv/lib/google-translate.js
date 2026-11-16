@@ -119,40 +119,71 @@ function httpsRequest(url, options = {}, body = null) {
     });
 }
 
+// In-memory language cache
+let cachedLanguages = null;
+let lastCacheTime = 0;
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
 /**
  * Get supported languages dynamically from Google Cloud Translation API v2.
  * Includes both the language code and human-readable English name: "Name (code)".
- * Always fetched live from Google Cloud Translation API with no local disk cache.
+ * Uses in-memory caching with fallback to local CSV for instantaneous lookup.
  */
 async function getSupportedLanguages() {
+    if (cachedLanguages && cachedLanguages.length > 0 && (Date.now() - lastCacheTime < CACHE_DURATION)) {
+        return cachedLanguages;
+    }
+
     const apiKey = getApiKey();
-    if (!apiKey || apiKey === 'YOUR_GOOGLE_API_KEY_HERE') {
-        throw new Error('Google Cloud Translation API key is not configured. Please set GOOGLE_TRANSLATE_API_KEY in .env file.');
+    if (apiKey && apiKey !== 'YOUR_GOOGLE_API_KEY_HERE') {
+        try {
+            const url = `${GOOGLE_LANGUAGES_URL}?key=${apiKey}&target=en`;
+            const data = await httpsRequest(url, { method: 'GET', timeout: 15000 });
+
+            if (data && data.data && Array.isArray(data.data.languages)) {
+                cachedLanguages = data.data.languages
+                    .filter(lang => lang && lang.language)
+                    .map(lang => {
+                        const code = lang.language;
+                        const name = lang.name || lang.language;
+                        return {
+                            key: code,
+                            code: code,
+                            name: name,
+                            text: `${name} (${code})`
+                        };
+                    })
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                lastCacheTime = Date.now();
+                return cachedLanguages;
+            }
+        } catch (apiErr) {
+            console.warn('[GoogleTranslate] Failed to fetch languages live, falling back to local dataset:', apiErr.message);
+        }
     }
 
-    const url = `${GOOGLE_LANGUAGES_URL}?key=${apiKey}&target=en`;
-    const data = await httpsRequest(url, { method: 'GET', timeout: 25000 });
-
-    if (data && data.data && Array.isArray(data.data.languages)) {
-        const languages = data.data.languages
-            .filter(lang => lang && lang.language)
-            .map(lang => {
-                const code = lang.language;
-                const name = lang.name || lang.language;
-                return {
-                    key: code,
-                    code: code,
-                    name: name,
-                    text: `${name} (${code})`
-                };
-            })
-            .sort((a, b) => a.name.localeCompare(b.name));
-
-        console.log(`[GoogleTranslate] Successfully loaded ${languages.length} dynamic languages live from Google API`);
-        return languages;
+    // Local CSV fallback (195 languages)
+    try {
+        const csvPath = path.resolve(__dirname, '../../db/data/plm.translator-Languages.csv');
+        if (fs.existsSync(csvPath)) {
+            const content = fs.readFileSync(csvPath, 'utf8');
+            const lines = content.split('\n').filter(l => l.trim().length > 0).slice(1);
+            cachedLanguages = lines.map(line => {
+                const parts = line.includes(';') ? line.split(';') : line.split(',');
+                const code = parts[0]?.trim();
+                const name = parts[1]?.trim() || code;
+                const descr = parts[2]?.trim() || `${name} (${code})`;
+                return { key: code, code: code, name: name, text: descr };
+            }).sort((a, b) => a.name.localeCompare(b.name));
+            lastCacheTime = Date.now();
+            return cachedLanguages;
+        }
+    } catch (csvErr) {
+        console.error('[GoogleTranslate] CSV fallback error:', csvErr.message);
     }
 
-    throw new Error('Invalid response received from Google Cloud Translation API');
+    return [];
 }
 
 /**
@@ -299,25 +330,100 @@ async function translateBatch(texts, targetLanguage, maxBatchSize = 50) {
 }
 
 /**
- * Resolve language code to "code-DisplayName" format.
+ * Detect language of a text using Google Cloud Translation API v2.
  */
-async function formatTargetLanguage(codeOrDisplay) {
-    try {
-        if (!codeOrDisplay) return '';
-        if (typeof codeOrDisplay === 'string' && codeOrDisplay.includes('-')) {
-            return codeOrDisplay;
-        }
+async function detectLanguage(text) {
+    if (!text || !text.trim()) return 'en';
+    if (!isConfigured()) return 'en';
 
-        const languages = await getSupportedLanguages();
-        for (const lang of languages) {
-            if (lang.key === codeOrDisplay) {
-                return `${codeOrDisplay}-${lang.name || lang.text}`;
-            }
+    try {
+        const apiKey = getApiKey();
+        const url = `${GOOGLE_TRANSLATE_BASE_URL}/detect?key=${apiKey}`;
+        const payload = { q: text.trim() };
+
+        const result = await httpsRequest(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 15000
+        }, payload);
+
+        if (result && result.data && result.data.detections && result.data.detections[0] && result.data.detections[0][0]) {
+            const detected = result.data.detections[0][0].language;
+            if (detected) return detected;
         }
-        return codeOrDisplay;
-    } catch (error) {
+        return 'en';
+    } catch (e) {
+        console.warn('[GoogleTranslate] detectLanguage error:', e.message);
+        return 'en';
+    }
+}
+
+/**
+ * Standard language formatter: Resolves code or mixed string to "Name (code)" format.
+ * Examples:
+ *   "en"         -> "English (en)"
+ *   "de"         -> "German (de)"
+ *   "en-English" -> "English (en)"
+ *   "German (de)"-> "German (de)"
+ */
+async function formatLanguage(codeOrDisplay) {
+    if (!codeOrDisplay || codeOrDisplay === 'auto') return 'English (en)';
+
+    // If already in "Name (code)" format, return as-is
+    if (typeof codeOrDisplay === 'string' && codeOrDisplay.includes('(') && codeOrDisplay.includes(')')) {
         return codeOrDisplay;
     }
+
+    // If in "code-Name" format, e.g. "de-German" -> "German (de)"
+    if (typeof codeOrDisplay === 'string' && codeOrDisplay.includes('-')) {
+        const parts = codeOrDisplay.split('-');
+        if (parts.length === 2 && parts[0].length <= 5) {
+            return `${parts[1]} (${parts[0]})`;
+        }
+    }
+
+    const cleanCode = typeof codeOrDisplay === 'string' ? codeOrDisplay.trim().toLowerCase() : String(codeOrDisplay);
+
+    try {
+        const languages = await getSupportedLanguages();
+        for (const lang of languages) {
+            if (
+                lang.code.toLowerCase() === cleanCode ||
+                lang.key.toLowerCase() === cleanCode ||
+                lang.name.toLowerCase() === cleanCode
+            ) {
+                return `${lang.name} (${lang.code})`;
+            }
+        }
+    } catch (error) {
+        // Fallback to static dictionary
+    }
+
+    const common = {
+        'en': 'English (en)',
+        'de': 'German (de)',
+        'fr': 'French (fr)',
+        'es': 'Spanish (es)',
+        'it': 'Italian (it)',
+        'ta': 'Tamil (ta)',
+        'ja': 'Japanese (ja)',
+        'zh': 'Chinese (zh)',
+        'hi': 'Hindi (hi)',
+        'pt': 'Portuguese (pt)',
+        'ru': 'Russian (ru)',
+        'nl': 'Dutch (nl)',
+        'ar': 'Arabic (ar)',
+        'ko': 'Korean (ko)'
+    };
+
+    return common[cleanCode] || codeOrDisplay;
+}
+
+/**
+ * Resolve language code to standardized "Name (code)" format.
+ */
+async function formatTargetLanguage(codeOrDisplay) {
+    return formatLanguage(codeOrDisplay);
 }
 
 module.exports = {
@@ -325,5 +431,7 @@ module.exports = {
     getSupportedLanguages,
     translateText,
     translateBatch,
+    detectLanguage,
+    formatLanguage,
     formatTargetLanguage
 };

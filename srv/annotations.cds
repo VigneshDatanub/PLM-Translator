@@ -23,15 +23,14 @@ annotate srv.TestResults with @(
     UI.HeaderInfo: {
         TypeName: 'Translation Evaluation',
         TypeNamePlural: 'Translation Evaluations',
-        Title: { Value: textToTranslate },
-        Description: { Value: translatedText }
+        Title: { Value: sessionId }
     },
 
     // Filter Bar Search Fields
     UI.SelectionFields: [
         outcome,
         targetLanguage,
-        testedBy,
+        createdBy,
         createdAt
     ],
 
@@ -76,10 +75,10 @@ annotate srv.TestResults with @(
         },
         {
             $Type: 'UI.DataField',
-            Value: testedBy,
-            Label: 'Tested By',
+            Value: createdBy,
+            Label: 'Created By',
             ![@UI.Importance]: #High,
-            ![@HTML5.CssDefaults]: { width: '13rem' }
+            ![@HTML5.CssDefaults]: { width: '12rem' }
         },
         {
             $Type: 'UI.DataField',
@@ -168,19 +167,43 @@ annotate srv.TestResults with @(
     UI.FieldGroup #GeneralInfo: {
         Data: [
             { Value: sessionId, Label: 'Session Identifier' },
-            { Value: testedBy, Label: 'Tested By' },
+            { Value: createdBy, Label: 'Created By User' },
             { Value: createdAt, Label: 'Record Created' },
             { Value: modifiedAt, Label: 'Last Modified' },
-            { Value: createdBy, Label: 'Created By User' }
+            { Value: modifiedBy, Label: 'Last Modified By' }
         ]
     }
 );
 
 annotate srv.TestResults with {
-    createdAt   @(UI.HiddenFilter: false, Common.Label: 'Tested On');
-    criticality @(UI.HiddenFilter: true);
-    ID          @(UI.HiddenFilter: true);
-    session     @(UI.HiddenFilter: true);
+    sourceLanguage  @readonly  @Common.FieldControl: #ReadOnly;
+    textToTranslate @readonly  @Common.FieldControl: #ReadOnly;
+    translatedText  @readonly  @Common.FieldControl: #ReadOnly;
+    sessionId       @readonly  @Common.FieldControl: #ReadOnly;
+    createdAt       @readonly  @Common.FieldControl: #ReadOnly  @(UI.HiddenFilter: false, Common.Label: 'Tested On');
+    createdBy       @readonly  @Common.FieldControl: #ReadOnly;
+    modifiedAt      @readonly  @Common.FieldControl: #ReadOnly;
+    modifiedBy      @readonly  @Common.FieldControl: #ReadOnly;
+    criticality     @(UI.HiddenFilter: true);
+    ID              @(UI.HiddenFilter: true);
+    session         @(UI.HiddenFilter: true);
+    targetLanguage  @readonly  @Common.FieldControl: #ReadOnly  @(
+        Common.ValueList: {
+            CollectionPath: 'Languages',
+            Label: 'Target Languages',
+            Parameters: [
+                {
+                    $Type: 'Common.ValueListParameterInOut',
+                    LocalDataProperty: targetLanguage,
+                    ValueListProperty: 'code'
+                },
+                {
+                    $Type: 'Common.ValueListParameterDisplayOnly',
+                    ValueListProperty: 'name'
+                }
+            ]
+        }
+    );
 };
 
 // ─── TestResultTransactions Annotations ───
@@ -255,7 +278,7 @@ annotate srv.TranslationSessions with @(
         TypeName: 'Mass Translation Session',
         TypeNamePlural: 'Mass Translation Sessions',
         Title: { Value: sessionName },
-        Description: { Value: testedBy }
+        Description: { Value: createdBy }
     },
     UI.LineItem: [
         { $Type: 'UI.DataField', Value: sessionName, Label: 'Session Name' },
@@ -263,7 +286,7 @@ annotate srv.TranslationSessions with @(
         { $Type: 'UI.DataField', Value: successful, Label: 'Successful' },
         { $Type: 'UI.DataField', Value: failed, Label: 'Failed' },
         { $Type: 'UI.DataField', Value: successRate, Label: 'Success Rate (%)' },
-        { $Type: 'UI.DataField', Value: testedBy, Label: 'Evaluator' },
+        { $Type: 'UI.DataField', Value: createdBy, Label: 'Created By' },
         { $Type: 'UI.DataField', Value: createdAt, Label: 'Created On' }
     ]
 );

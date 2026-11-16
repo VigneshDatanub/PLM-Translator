@@ -57,15 +57,16 @@ sap.ui.define([
                 sourceText: "",
                 targetLanguage: "de",
                 translatedText: "",
-                detectedLanguage: "auto",
+                detectedLanguage: "en",
+                detectedLanguageDisplay: "",
                 outcome: "Success",
                 accuracy: 95,
                 observation: "",
-                testedBy: "Business User",
                 isTranslating: false,
                 isTranslated: false,
                 languages: []
             });
+            oModel.setSizeLimit(1000);
 
             // 1. Load languages dynamically from Google Cloud Translation API
             fetch(getBaseUrl("api/getLanguages()"))
@@ -77,17 +78,6 @@ sap.ui.define([
                 .catch(function (e) {
                     console.warn("[QuickTranslate] Could not load languages dynamically:", e);
                 });
-
-            // 2. Fetch user info for testedBy default
-            fetch(getBaseUrl("api/getUserInfo()"))
-                .then(function (res) { return res.json(); })
-                .then(function (data) {
-                    var u = (data && data.value) ? data.value : data;
-                    if (u && u.user) {
-                        oModel.setProperty("/testedBy", u.user);
-                    }
-                })
-                .catch(function () {});
 
             var oDialog = new Dialog({
                 title: "Single Translation",
@@ -115,22 +105,23 @@ sap.ui.define([
                     new VBox({
                         width: "100%",
                         items: [
-                            applyClass(new Label({ text: "Target Language:", required: true }), "sapUiTinyMarginBottom"),
-                            new ComboBox({
-                                width: "100%",
-                                selectedKey: "{dialog>/targetLanguage}",
-                                items: {
-                                    path: "dialog>/languages",
-                                    template: new Item({ key: "{dialog>code}", text: "{dialog>text}" })
-                                }
-                            }),
-
-                            applyClass(new Label({ text: "Source Text to Translate:", required: true }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
+                            applyClass(new Label({ text: "Source Text to Translate:", required: true }), "sapUiTinyMarginBottom"),
                             new TextArea({
                                 width: "100%",
                                 rows: 3,
                                 value: "{dialog>/sourceText}",
                                 placeholder: "Enter source text to translate..."
+                            }),
+
+                            applyClass(new Label({ text: "Target Language:", required: true }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
+                            new ComboBox({
+                                width: "100%",
+                                selectedKey: "{dialog>/targetLanguage}",
+                                items: {
+                                    path: "dialog>/languages",
+                                    length: 1000,
+                                    template: new Item({ key: "{dialog>code}", text: "{dialog>text}" })
+                                }
                             }),
 
                             new HBox({
@@ -164,8 +155,19 @@ sap.ui.define([
                                                 oModel.setProperty("/isTranslating", false);
                                                 var res = (resData && resData.value) ? resData.value : resData;
                                                 if (res && res.success) {
+                                                    var sDet = res.sourceLanguage || "en";
+                                                    var aLanguages = oModel.getProperty("/languages") || [];
+                                                    var sDetName = sDet;
+                                                    for (var idx = 0; idx < aLanguages.length; idx++) {
+                                                        if (aLanguages[idx].code === sDet || aLanguages[idx].key === sDet) {
+                                                            sDetName = aLanguages[idx].text || aLanguages[idx].name || sDet;
+                                                            break;
+                                                        }
+                                                    }
+
                                                     oModel.setProperty("/translatedText", res.translatedText);
-                                                    oModel.setProperty("/detectedLanguage", res.sourceLanguage || "auto");
+                                                    oModel.setProperty("/detectedLanguage", sDet);
+                                                    oModel.setProperty("/detectedLanguageDisplay", sDetName);
                                                     oModel.setProperty("/isTranslated", true);
                                                     if (!oModel.getProperty("/outcome")) {
                                                         oModel.setProperty("/outcome", "Success");
@@ -173,7 +175,7 @@ sap.ui.define([
                                                     if (oModel.getProperty("/accuracy") === null || oModel.getProperty("/accuracy") === undefined || oModel.getProperty("/accuracy") === "") {
                                                         oModel.setProperty("/accuracy", 95);
                                                     }
-                                                    MessageToast.show("Translation completed! You can now review and edit the output or adjust accuracy.");
+                                                    MessageToast.show("Translation completed! Detected source: " + sDetName);
                                                 } else {
                                                     MessageBox.error((res && res.error) || "Translation failed");
                                                 }
@@ -193,7 +195,7 @@ sap.ui.define([
                                 rows: 3,
                                 editable: true,
                                 value: "{dialog>/translatedText}",
-                                placeholder: "Translated result will appear here. You can manually edit it after translation..."
+                                placeholder: "Translated result will appear here."
                             }),
 
                             applyClass(new Title({ text: "Record Test Quality & Evaluation", level: "H5" }), "sapUiMediumMarginTop sapUiTinyMarginBottom"),
@@ -209,9 +211,9 @@ sap.ui.define([
                                                 width: "100%",
                                                 selectedKey: "{dialog>/outcome}",
                                                 items: [
-                                                    new Item({ key: "Success", text: "Success (Accurate)" }),
-                                                    new Item({ key: "Partial", text: "Partial (Needs Edit)" }),
-                                                    new Item({ key: "Failure", text: "Failure (Inaccurate)" })
+                                                    new Item({ key: "Success", text: "Success" }),
+                                                    new Item({ key: "Partial", text: "Partial" }),
+                                                    new Item({ key: "Failure", text: "Failure" })
                                                 ]
                                             })
                                         ]
@@ -229,13 +231,6 @@ sap.ui.define([
                                         ]
                                     })
                                 ]
-                            }),
-
-                            applyClass(new Label({ text: "Evaluator / Tested By:" }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
-                            new Input({
-                                width: "100%",
-                                value: "{dialog>/testedBy}",
-                                placeholder: "Enter evaluator name"
                             }),
 
                             applyClass(new Label({ text: "Observations & Notes:" }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
@@ -283,18 +278,20 @@ sap.ui.define([
                         }
 
                         oDialog.setBusy(true);
+                        var sSessionId = "single_translation_" + new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 15);
+                        var sDetectedSource = oModel.getProperty("/detectedLanguage");
                         var payload = {
+                            sessionId: sSessionId,
+                            sourceText: sSrc.trim(),
+                            sourceLanguage: sDetectedSource || "en",
+                            targetLanguage: sTargetLang,
+                            translatedText: sTrans.trim(),
                             outcome: oModel.getProperty("/outcome") || "Success",
                             accuracy: parsedAcc,
-                            observation: (oModel.getProperty("/observation") || "").trim(),
-                            testedBy: (oModel.getProperty("/testedBy") || "Business User").trim(),
-                            textToTranslate: sSrc.trim(),
-                            translatedText: sTrans.trim(),
-                            sourceLanguage: oModel.getProperty("/detectedLanguage") || "auto",
-                            targetLanguage: sLangText
+                            observation: (oModel.getProperty("/observation") || "").trim()
                         };
 
-                        fetch(getBaseUrl("api/TestResults"), {
+                        fetch(getBaseUrl("api/singleTranslate"), {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(payload)
@@ -310,7 +307,7 @@ sap.ui.define([
                         .then(function (saved) {
                             oDialog.setBusy(false);
                             oDialog.close();
-                            MessageToast.show("Test evaluation logged successfully!");
+                            MessageToast.show("Test evaluation created successfully!");
 
                             // Refresh current FE view binding if available
                             if (oView && oView.getModel()) {
@@ -352,27 +349,17 @@ sap.ui.define([
         onMassUpload: function (oEvent) {
             var oView = (this.base && this.base.getView) ? this.base.getView() : null;
             var oModel = new JSONModel({
-                testedBy: "Business User",
                 targetLanguages: ["de", "fr", "es"],
                 languages: [],
                 statusText: ""
             });
+            oModel.setSizeLimit(1000);
 
             fetch(getBaseUrl("api/getLanguages()"))
                 .then(function (res) { return res.json(); })
                 .then(function (data) {
                     var aLangs = (data && data.value) ? data.value : (Array.isArray(data) ? data : []);
                     oModel.setProperty("/languages", aLangs);
-                })
-                .catch(function () {});
-
-            fetch(getBaseUrl("api/getUserInfo()"))
-                .then(function (res) { return res.json(); })
-                .then(function (data) {
-                    var u = (data && data.value) ? data.value : data;
-                    if (u && u.user) {
-                        oModel.setProperty("/testedBy", u.user);
-                    }
                 })
                 .catch(function () {});
 
@@ -390,6 +377,7 @@ sap.ui.define([
                 selectedKeys: "{dialog>/targetLanguages}",
                 items: {
                     path: "dialog>/languages",
+                    length: 1000,
                     template: new Item({ key: "{dialog>code}", text: "{dialog>text}" })
                 },
                 selectionChange: function (oEvent) {
@@ -464,13 +452,6 @@ sap.ui.define([
                             applyClass(new Label({ text: "Target Languages (Multi-Select):", required: true }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
                             oMultiCombo,
 
-                            applyClass(new Label({ text: "Evaluator / Tested By:", required: true }), "sapUiSmallMarginTop sapUiTinyMarginBottom"),
-                            new Input({
-                                width: "100%",
-                                value: "{dialog>/testedBy}",
-                                placeholder: "Enter evaluator name"
-                            }),
-
                             applyClass(new Text({
                                 text: "{dialog>/statusText}"
                             }), "sapUiSmallMarginTop")
@@ -497,12 +478,6 @@ sap.ui.define([
                         }
                         if (!aTargets || aTargets.length === 0) {
                             MessageToast.show("Please select at least one target language.");
-                            return;
-                        }
-
-                        var sTester = oModel.getProperty("/testedBy");
-                        if (!sTester || !sTester.trim()) {
-                            MessageToast.show("Please enter evaluator name.");
                             return;
                         }
 
@@ -593,8 +568,7 @@ sap.ui.define([
                                     },
                                     body: JSON.stringify({
                                         textsJson: JSON.stringify(texts),
-                                        targetLanguages: JSON.stringify(aTargets),
-                                        testedBy: sTester.trim()
+                                        targetLanguages: JSON.stringify(aTargets)
                                     })
                                 })
                                 .then(function (res) { return res.json(); })

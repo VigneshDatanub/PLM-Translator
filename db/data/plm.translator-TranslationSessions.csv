@@ -1,0 +1,2 @@
+ID,createdAt,createdBy,modifiedAt,modifiedBy,sessionName,sessionId,totalRows,successful,failed,successRate
+2bde3ae9-a3fa-4a8a-b817-fe7cee26293c,2026-11-15T08:13:19.217Z,bob,2026-11-15T08:13:19.217Z,bob,Batch Translation (3 items x 2 langs),mass_translation_202611150813192,6,6,0,100

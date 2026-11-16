@@ -142,7 +142,7 @@ function createResultsExcel(results) {
             'Outcome': outcomeDisplay,
             'Observation': result.observation || '',
             'Accuracy (%)': (result.accuracy !== null && result.accuracy !== undefined && result.accuracy !== '') ? result.accuracy : 'N/A',
-            'Tested By': result.testedBy || result.tested_by || '',
+            'Created By': result.createdBy || result.created_by || '',
             'Date Created': result.createdAt || result.created_at || '',
             'Session ID': result.sessionId || result.session_id || ''
         };

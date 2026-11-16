@@ -51,15 +51,13 @@ service TranslatorService @(requires: 'authenticated-user') {
         { grant: 'READ', to: 'authenticated-user' }
     ]);
 
-    // ─── Native CAP Media Entity for Excel Batch Processing ───
-    entity ExcelUploads as projection on db.ExcelUploads;
-
-    annotate ExcelUploads with @(restrict: [
-        { grant: ['READ', 'CREATE'], to: ['TranslatorUser', 'TranslatorAdmin'] }
-    ]);
-
     // ─── Translation Actions ───
     action singleTranslate(
+        @title: 'Source Text to Translate'
+        @mandatory
+        @UI.MultiLineText: true
+        sourceText     : LargeString,
+
         @title: 'Target Language'
         @mandatory
         @Common.ValueList: {
@@ -71,10 +69,12 @@ service TranslatorService @(requires: 'authenticated-user') {
         }
         targetLanguage : String,
 
-        @title: 'Source Text to Translate'
-        @mandatory
+        @title: 'Source Language'
+        sourceLanguage : String,
+
+        @title: 'Translated Text'
         @UI.MultiLineText: true
-        sourceText     : LargeString,
+        translatedText : LargeString,
 
         @title: 'Quality Assessment (Outcome)'
         outcome        : db.OutcomeType,
@@ -82,12 +82,12 @@ service TranslatorService @(requires: 'authenticated-user') {
         @title: 'Accuracy Rating (0 - 100%)'
         accuracy       : Double,
 
-        @title: 'Evaluator / Tested By'
-        testedBy       : String,
-
         @title: 'Observations & Notes'
         @UI.MultiLineText: true
-        observation    : String
+        observation    : String,
+
+        @title: 'Session Identifier'
+        sessionId      : String
     ) returns TestResults;
 
     action translate(
@@ -103,8 +103,7 @@ service TranslatorService @(requires: 'authenticated-user') {
 
     action massTranslate(
         textsJson       : LargeString,
-        targetLanguages : LargeString,
-        testedBy        : String
+        targetLanguages : LargeString
     ) returns {
         success    : Boolean;
         message    : String;

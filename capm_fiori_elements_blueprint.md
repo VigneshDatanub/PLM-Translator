@@ -52,7 +52,6 @@ entity TranslationSessions : cuid, managed {
     successful      : Integer     @title: 'Successful';
     failed          : Integer     @title: 'Failed';
     successRate     : Double      @title: 'Success Rate (%)';
-    testedBy        : String(100) @title: 'Tested By';
     
     // Header-Item Composition
     results         : Composition of many TestResults on results.session = $self;
@@ -66,7 +65,6 @@ entity TestResults : cuid, managed {
     outcome         : OutcomeType @mandatory @title: 'Outcome';
     accuracy        : Double      @assert.range: [0, 100] @title: 'Accuracy (%)';
     observation     : String(5000) @title: 'Observations';
-    testedBy        : String(100)  @mandatory @title: 'Tested By';
     textToTranslate : LargeString  @mandatory @title: 'Source Text';
     translatedText  : LargeString  @title: 'Translated Text';
     sourceLanguage  : Association to Languages @title: 'Source Language';
@@ -86,7 +84,6 @@ entity ExcelUploads : cuid, managed {
     @Core.IsMediaType: true
     mediaType : String;
     fileName  : String;
-    testedBy  : String;
     status    : String;
 }
 ```
@@ -165,7 +162,7 @@ annotate srv.TestResults with @(
     UI.SelectionFields: [
         outcome,
         targetLanguage_code,
-        testedBy,
+        createdBy,
         createdAt
     ],
 
@@ -195,7 +192,7 @@ annotate srv.TestResults with @(
         },
         {
             $Type: 'UI.DataField',
-            Value: testedBy
+            Value: createdBy
         },
         {
             $Type: 'UI.DataField',
@@ -234,7 +231,7 @@ annotate srv.TestResults with @(
     UI.FieldGroup #GeneralInfo: {
         Data: [
             { Value: session_ID, Label: 'Session' },
-            { Value: testedBy, Label: 'Evaluator' },
+            { Value: createdBy, Label: 'Created By User' },
             { Value: createdAt, Label: 'Created On' },
             { Value: modifiedAt, Label: 'Modified On' }
         ]

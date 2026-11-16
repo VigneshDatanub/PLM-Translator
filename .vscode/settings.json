@@ -32,5 +32,13 @@
   "ui5.plugin.excludeFolderPatterns": [
     "**/lib/**"
   ],
-  "sqltools.connections": []
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "driver": "SQLite",
+      "name": "mydb",
+      "database": "db.sqlite"
+    }
+  ],
+  "sqltools.useNodeRuntime": true
 }

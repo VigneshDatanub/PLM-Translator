@@ -17,13 +17,13 @@ const excelHandler = require('./lib/excel-handler');
 module.exports = class TranslatorService extends cds.ApplicationService {
 
     async init() {
-        const { TestResults, TranslationSessions, Languages, ExcelUploads, TestResultTransactions } = this.entities;
+        const { TestResults, TranslationSessions, Languages, TestResultTransactions } = this.entities;
 
         // ─────────────────────────────────────────────
         // ACTION: singleTranslate (100% Native SAP Fiori Elements Action Dialog)
         // ─────────────────────────────────────────────
         this.on('singleTranslate', async (req) => {
-            const { targetLanguage, sourceText, outcome, accuracy, testedBy, observation } = req.data;
+            const { targetLanguage, sourceLanguage: clientSourceLanguage, sourceText, translatedText: clientTranslatedText, outcome, accuracy, observation, sessionId: clientSessionId } = req.data;
 
             if (!sourceText || !sourceText.trim()) {
                 return req.error(400, 'Please enter source text to translate.');
@@ -32,41 +32,50 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                 return req.error(400, 'Please select a target language.');
             }
 
-            // 1. Call Google Cloud Translate API
-            let translatedText = '';
-            let sourceLang = 'auto';
+            // 1. Determine translated text and detected source language
+            let translatedText = (clientTranslatedText && clientTranslatedText.trim()) || '';
+            let sourceLang = clientSourceLanguage;
             let recordOutcome = outcome || 'Success';
 
-            const transResult = await googleTranslate.translateText(sourceText.trim(), targetLanguage.trim());
-            if (transResult && transResult.success) {
-                translatedText = transResult.translatedText;
-                sourceLang = transResult.sourceLanguage || 'auto';
-            } else {
-                const errMsg = (transResult && transResult.error) || 'Google Translate API unavailable';
-                translatedText = `[Translation unavailable: ${errMsg}]`;
-                if (!outcome) {
-                    recordOutcome = 'Failure';
+            if (!translatedText) {
+                // Call Google Cloud Translate API if translated text was not passed from client
+                const transResult = await googleTranslate.translateText(sourceText.trim(), targetLanguage.trim());
+                if (transResult && transResult.success) {
+                    translatedText = transResult.translatedText;
+                    sourceLang = transResult.sourceLanguage || sourceLang;
+                } else {
+                    const errMsg = (transResult && transResult.error) || 'Google Translate API unavailable';
+                    translatedText = `[Translation unavailable: ${errMsg}]`;
+                    if (!outcome) {
+                        recordOutcome = 'Failure';
+                    }
                 }
             }
 
-            const formattedLang = await googleTranslate.formatTargetLanguage(targetLanguage.trim());
+            // Ensure source language is accurately detected if missing or 'auto'
+            if (!sourceLang || sourceLang === 'auto') {
+                sourceLang = await googleTranslate.detectLanguage(sourceText.trim());
+            }
+
+            const formattedSourceLang = await googleTranslate.formatLanguage(sourceLang);
+            const formattedTargetLang = await googleTranslate.formatTargetLanguage(targetLanguage.trim());
             const recordId = uuidv4();
-            const userId = req.user?.id || (testedBy && testedBy.trim()) || 'Business User';
+            const userId = req.user?.id || 'Business User';
             const now = new Date().toISOString();
             const parsedAccuracy = (accuracy !== null && accuracy !== undefined && accuracy !== '') ? parseFloat(accuracy) : (recordOutcome === 'Failure' ? 0 : 95);
+            const activeSessionId = (clientSessionId && clientSessionId.trim()) || `single_translation_${now.replace(/[-:T.]/g, '').slice(0, 15)}`;
 
-            // 2. Persist to TestResults
+            // 2. Persist directly as active entity to TestResults
             const newRecord = {
                 ID: recordId,
                 outcome: recordOutcome,
                 accuracy: parsedAccuracy,
                 observation: (observation && observation.trim()) || '',
-                testedBy: (testedBy && testedBy.trim()) || userId,
                 textToTranslate: sourceText.trim(),
                 translatedText: translatedText,
-                sourceLanguage: sourceLang,
-                targetLanguage: formattedLang,
-                sessionId: uuidv4(),
+                sourceLanguage: formattedSourceLang,
+                targetLanguage: formattedTargetLang,
+                sessionId: activeSessionId,
                 createdBy: userId,
                 createdAt: now,
                 modifiedBy: userId,
@@ -84,7 +93,7 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                 performedBy: userId,
                 outcome: recordOutcome,
                 accuracy: parsedAccuracy,
-                details: `Single translation created for target language: ${formattedLang}`,
+                details: `Single translation created for target language: ${formattedTargetLang}`,
                 createdBy: userId,
                 createdAt: now,
                 modifiedBy: userId,
@@ -123,12 +132,7 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         // Equivalent of: POST /api/mass-translate
         // ─────────────────────────────────────────────
         this.on('massTranslate', async (req) => {
-            const { textsJson, targetLanguages: targetLangsJson, testedBy } = req.data;
-
-            // Validate inputs
-            if (!testedBy || !testedBy.trim()) {
-                return { success: false, error: 'Tested by field is required' };
-            }
+            const { textsJson, targetLanguages: targetLangsJson } = req.data;
 
             let texts, targetLanguages;
             try {
@@ -150,7 +154,7 @@ module.exports = class TranslatorService extends cds.ApplicationService {
             let successfulTranslations = 0;
             let failedTranslations = 0;
 
-            const userId = req.user?.id || testedBy.trim() || 'Business User';
+            const userId = req.user?.id || 'Business User';
             const now = new Date().toISOString();
 
             // Process each target language
@@ -170,16 +174,20 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                     const description = originalData.description || '';
                     const recordId = uuidv4();
 
+                    const detectedSource = (result.sourceLanguage && result.sourceLanguage !== 'auto')
+                        ? result.sourceLanguage
+                        : await googleTranslate.detectLanguage(originalData.text || sourceTexts[idx]);
+                    const formattedSourceLang = await googleTranslate.formatLanguage(detectedSource);
+
                     if (result.success) {
                         dbRecords.push({
                             ID: recordId,
                             outcome: 'Success',
                             accuracy: null,
                             observation: `Mass translation - Row ${rowIndex}${description ? ' - ' + description : ''}`,
-                            testedBy: testedBy.trim(),
                             textToTranslate: originalData.text || sourceTexts[idx],
                             translatedText: result.translatedText,
-                            sourceLanguage: 'auto',
+                            sourceLanguage: formattedSourceLang,
                             targetLanguage: formattedLang,
                             sessionId: sessionId,
                             createdBy: userId,
@@ -208,10 +216,9 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                             outcome: 'Failure',
                             accuracy: null,
                             observation: `Mass translation FAILED - Row ${rowIndex} - Error: ${errorMessage}${description ? ' - ' + description : ''}`,
-                            testedBy: testedBy.trim(),
                             textToTranslate: originalData.text || sourceTexts[idx],
                             translatedText: `ERROR: ${errorMessage}`,
-                            sourceLanguage: 'auto',
+                            sourceLanguage: formattedSourceLang,
                             targetLanguage: formattedLang,
                             sessionId: sessionId,
                             createdBy: userId,
@@ -272,7 +279,6 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                     successful: successfulTranslations,
                     failed: failedTranslations,
                     successRate: successRate,
-                    testedBy: testedBy.trim(),
                     createdBy: userId,
                     createdAt: now,
                     modifiedBy: userId,
@@ -301,8 +307,28 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         // Equivalent of: GET /api/languages
         // ─────────────────────────────────────────────
         this.on('getLanguages', async () => {
-            const languages = await googleTranslate.getSupportedLanguages();
-            return languages;
+            try {
+                const languages = await googleTranslate.getSupportedLanguages();
+                if (languages && languages.length > 0) {
+                    return languages;
+                }
+            } catch (err) {
+                console.warn('[getLanguages] Falling back to database Languages:', err.message);
+            }
+
+            // Fallback to seeded database languages table (195 languages)
+            try {
+                const dbLangs = await cds.run(SELECT.from(Languages).columns('code', 'name').orderBy('name asc'));
+                return dbLangs.map(l => ({
+                    key: l.code,
+                    code: l.code,
+                    name: l.name,
+                    text: `${l.name} (${l.code})`
+                }));
+            } catch (dbErr) {
+                console.error('[getLanguages] Failed to load from database:', dbErr.message);
+                return [];
+            }
         });
 
         // ─────────────────────────────────────────────
@@ -381,87 +407,120 @@ module.exports = class TranslatorService extends cds.ApplicationService {
         });
 
         // ─────────────────────────────────────────────
-        // BEFORE handler: TestResults on SAVE (draft activation)
+        // BEFORE handler: TestResults on UPDATE / SAVE (Object Page edit & draft activation)
         // Checks for existing record to determine field changes
         // ─────────────────────────────────────────────
-        this.before('SAVE', 'TestResults', async (req) => {
+        const captureExistingRecord = async (req) => {
             const data = req.data;
-            if (!data || !data.ID) return;
+            const recordId = data?.ID || (req.query?.UPDATE?.where && req.query.UPDATE.where[2]?.val) || (req.params && req.params[0] && req.params[0].ID);
+            if (!recordId) return;
 
             try {
                 const existing = await cds.run(
-                    SELECT.one.from('plm.translator.TestResults').where({ ID: data.ID })
+                    SELECT.one.from(TestResults).where({ ID: recordId })
                 );
                 if (existing) {
                     req._existingRecord = existing;
+
+                    // Strictly lock down immutable fields so only Evaluation & Quality Assessment can be modified
+                    if (data) {
+                        delete data.sessionId;
+                        delete data.textToTranslate;
+                        delete data.translatedText;
+                        delete data.sourceLanguage;
+                        delete data.targetLanguage;
+                        delete data.createdAt;
+                        delete data.createdBy;
+                    }
                 }
             } catch (err) {
-                // Ignore if lookup fails
+                console.warn('[captureExistingRecord] error:', err.message);
             }
-        });
+        };
+
+        this.before('UPDATE', 'TestResults', captureExistingRecord);
+        this.before('SAVE', 'TestResults', captureExistingRecord);
+        this.before('SAVE', 'TestResults.drafts', captureExistingRecord);
 
         // ─────────────────────────────────────────────
-        // AFTER handler: TestResults on SAVE (draft activation)
+        // AFTER handler: TestResults on UPDATE / SAVE
         // Records audit transaction on Object Page save
         // ─────────────────────────────────────────────
-        this.after('SAVE', 'TestResults', async (data, req) => {
-            if (!data || !data.ID) return;
+        const recordEvaluationChanges = async (data, req) => {
+            if (req._evaluationTxLogged) return;
+            const recordId = (data && data.ID) || req.data?.ID || (req._existingRecord && req._existingRecord.ID);
+            if (!recordId) return;
+
+            const existing = req._existingRecord;
             const userId = req.user?.id || 'Business User';
             const now = new Date().toISOString();
-            const existing = req._existingRecord;
 
             if (existing) {
-                // Modification of an existing record
-                const changes = [];
-                if (data.outcome && data.outcome !== existing.outcome) {
-                    changes.push(`Outcome changed from '${existing.outcome}' to '${data.outcome}'`);
-                }
-                if (data.accuracy !== undefined && data.accuracy !== null && data.accuracy !== existing.accuracy) {
-                    changes.push(`Accuracy updated from ${existing.accuracy !== null ? existing.accuracy + '%' : 'unrated'} to ${data.accuracy}%`);
-                }
-                if (data.observation !== undefined && data.observation !== existing.observation) {
-                    changes.push('Observations updated');
-                }
-                const details = changes.length > 0 ? changes.join('; ') : 'Evaluation details updated';
+                // Modification / update of an existing record on Object Page
+                const incomingOutcome = (data && data.outcome) || req.data?.outcome;
+                const incomingAccuracy = (data && data.accuracy !== undefined) ? data.accuracy : req.data?.accuracy;
+                const incomingObservation = (data && data.observation !== undefined) ? data.observation : req.data?.observation;
 
-                try {
-                    await cds.run(INSERT.into(TestResultTransactions).entries({
-                        ID: uuidv4(),
-                        result_ID: data.ID,
-                        action: 'Evaluation Updated',
-                        performedBy: userId,
-                        outcome: data.outcome || existing.outcome,
-                        accuracy: data.accuracy !== undefined ? data.accuracy : existing.accuracy,
-                        details: details,
-                        createdBy: userId,
-                        createdAt: now,
-                        modifiedBy: userId,
-                        modifiedAt: now
-                    }));
-                } catch (txErr) {
-                    console.warn('[Audit] Could not log SAVE update transaction:', txErr.message);
+                const changes = [];
+                if (incomingOutcome && incomingOutcome !== existing.outcome) {
+                    changes.push(`Outcome changed from '${existing.outcome}' to '${incomingOutcome}'`);
                 }
-            } else {
-                // Creation of a new record via draft flow
+                if (incomingAccuracy !== undefined && incomingAccuracy !== null && Number(incomingAccuracy) !== Number(existing.accuracy)) {
+                    changes.push(`Accuracy updated from ${existing.accuracy !== null ? existing.accuracy + '%' : 'unrated'} to ${incomingAccuracy}%`);
+                }
+                if (incomingObservation !== undefined && incomingObservation !== existing.observation) {
+                    changes.push(`Observations updated: "${incomingObservation}"`);
+                }
+
+                if (changes.length > 0) {
+                    const details = changes.join('; ');
+                    req._evaluationTxLogged = true;
+
+                    try {
+                        await cds.run(INSERT.into(TestResultTransactions).entries({
+                            ID: uuidv4(),
+                            result_ID: recordId,
+                            action: 'Evaluation Updated',
+                            performedBy: userId,
+                            outcome: incomingOutcome || existing.outcome,
+                            accuracy: incomingAccuracy !== undefined ? incomingAccuracy : existing.accuracy,
+                            details: details,
+                            createdBy: userId,
+                            createdAt: now,
+                            modifiedBy: userId,
+                            modifiedAt: now
+                        }));
+                        console.log(`[Audit] Logged 'Evaluation Updated' transaction for ${recordId}: ${details}`);
+                    } catch (txErr) {
+                        console.warn('[Audit] Could not log update transaction:', txErr.message);
+                    }
+                }
+            } else if (req.event === 'SAVE' || req.event === 'draftActivate') {
+                // Initial activation of a new record (if not already logged by CREATE)
+                req._evaluationTxLogged = true;
                 try {
                     await cds.run(INSERT.into(TestResultTransactions).entries({
                         ID: uuidv4(),
-                        result_ID: data.ID,
+                        result_ID: recordId,
                         action: 'Single Translation Created',
                         performedBy: userId,
-                        outcome: data.outcome || 'Success',
-                        accuracy: data.accuracy !== undefined ? data.accuracy : null,
-                        details: `Translation recorded for target language: ${data.targetLanguage || 'Unknown'}`,
+                        outcome: (data && data.outcome) || 'Success',
+                        accuracy: (data && data.accuracy !== undefined) ? data.accuracy : null,
+                        details: `Single translation created for target language: ${data?.targetLanguage || 'Unknown'}`,
                         createdBy: userId,
                         createdAt: now,
                         modifiedBy: userId,
                         modifiedAt: now
                     }));
                 } catch (txErr) {
-                    console.warn('[Audit] Could not log SAVE create transaction:', txErr.message);
+                    console.warn('[Audit] Could not log create transaction:', txErr.message);
                 }
             }
-        });
+        };
+
+        this.after('UPDATE', 'TestResults', recordEvaluationChanges);
+        this.after('SAVE', 'TestResults', recordEvaluationChanges);
+        this.after('SAVE', 'TestResults.drafts', recordEvaluationChanges);
 
         // ─────────────────────────────────────────────
         // AFTER handler: Direct CREATE on TestResults (e.g. from Single Translation dialog)
@@ -523,28 +582,6 @@ module.exports = class TranslatorService extends cds.ApplicationService {
                     record.criticality = 2;
                 } else {
                     record.criticality = 0;
-                }
-            }
-        });
-
-        // ─────────────────────────────────────────────
-        // BEFORE handler: Process Native CAP ExcelUploads
-        // ─────────────────────────────────────────────
-        this.before('CREATE', 'ExcelUploads', async (req) => {
-            const data = req.data;
-            if (data.content) {
-                try {
-                    const buffer = Buffer.isBuffer(data.content) ? data.content : Buffer.from(data.content, 'base64');
-                    const parseResult = excelHandler.parseExcelFile(buffer);
-                    if (!parseResult.success) {
-                        req.error(400, parseResult.error);
-                        return;
-                    }
-                    const sessionId = `mass_translation_${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 15)}`;
-                    data.sessionId = sessionId;
-                    data.status = 'Processed';
-                } catch (err) {
-                    req.error(500, `Excel processing failed: ${err.message}`);
                 }
             }
         });

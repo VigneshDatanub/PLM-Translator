@@ -49,10 +49,17 @@
         }
     },
     "sap.ui5": {
+        "rootView": {
+            "viewName": "sap.fe.templates.RootContainer.view.Fcl",
+            "type": "XML",
+            "async": true,
+            "id": "appRootView"
+        },
         "dependencies": {
             "minUI5Version": "1.120.0",
             "libs": {
                 "sap.m": {},
+                "sap.f": {},
                 "sap.ui.core": {},
                 "sap.fe.core": {},
                 "sap.fe.templates": {},
@@ -88,6 +95,10 @@
         "routing": {
             "config": {
                 "routerClass": "sap.f.routing.Router",
+                "flexibleColumnLayout": {
+                    "defaultTwoColumnLayoutType": "TwoColumnsMidExpanded",
+                    "defaultThreeColumnLayoutType": "ThreeColumnsMidExpanded"
+                },
                 "bypassed": {
                     "target": "TestResultsList"
                 }
@@ -96,17 +107,24 @@
                 {
                     "pattern": ":?query:",
                     "name": "TestResultsList",
-                    "target": "TestResultsList"
+                    "target": [
+                        "TestResultsList"
+                    ]
                 },
                 {
                     "pattern": "PLMTranslator-manage:?query:",
                     "name": "TestResultsListFLP",
-                    "target": "TestResultsList"
+                    "target": [
+                        "TestResultsList"
+                    ]
                 },
                 {
                     "pattern": "TestResults({key}):?query:",
                     "name": "TestResultsObjectPage",
-                    "target": "TestResultsObjectPage"
+                    "target": [
+                        "TestResultsList",
+                        "TestResultsObjectPage"
+                    ]
                 }
             ],
             "targets": {
@@ -114,6 +132,8 @@
                     "type": "Component",
                     "id": "TestResultsList",
                     "name": "sap.fe.templates.ListReport",
+                    "controlAggregation": "beginColumnPages",
+                    "contextPattern": "",
                     "options": {
                         "settings": {
                             "contextPath": "/TestResults",
@@ -141,7 +161,7 @@
                                         "DataField::targetLanguage": { "width": "12rem" },
                                         "DataField::textToTranslate": { "width": "22rem" },
                                         "DataField::translatedText": { "width": "22rem" },
-                                        "DataField::testedBy": { "width": "13rem" },
+                                        "DataField::createdBy": { "width": "12rem" },
                                         "DataField::createdAt": { "width": "12rem" },
                                         "DataField::observation": { "width": "20rem" }
                                     },
@@ -166,6 +186,8 @@
                     "type": "Component",
                     "id": "TestResultsObjectPage",
                     "name": "sap.fe.templates.ObjectPage",
+                    "controlAggregation": "midColumnPages",
+                    "contextPattern": "/TestResults({key})",
                     "options": {
                         "settings": {
                             "contextPath": "/TestResults",
