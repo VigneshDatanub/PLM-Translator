@@ -143,7 +143,7 @@ sap.ui.define([
          * adjust accuracy rating, and save to Test Results.
          */
         onQuickTranslate: function (oEvent) {
-            var oView = (this.base && this.base.getView) ? this.base.getView() : null;
+            var oView = (typeof this.getView === "function") ? this.getView() : null;
             var oModel = new JSONModel({
                 sourceText: "",
                 targetLanguage: "de",
@@ -438,7 +438,7 @@ sap.ui.define([
          * Mass Translation Excel Upload Action Dialog
          */
         onMassUpload: function (oEvent) {
-            var oView = (this.base && this.base.getView) ? this.base.getView() : null;
+            var oView = (typeof this.getView === "function") ? this.getView() : null;
             var oModel = new JSONModel({
                 targetLanguages: ["de", "fr", "es"],
                 languages: [],
