@@ -1,6 +1,6 @@
 {
   "name": "plm-translator-ui5",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "description": "UI5 Frontend for PLM Translator",
   "scripts": {
     "build": "node -e \"fs.mkdirSync('dist', {recursive: true})\" && tar -a -cf dist/plmtranslatorapp.zip -C webapp *"

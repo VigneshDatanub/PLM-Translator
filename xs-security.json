@@ -3,6 +3,13 @@
   "tenant-mode": "dedicated",
   "description": "Security configuration for PLM Translator",
   "oauth2-configuration": {
+    "grant-types": [
+      "authorization_code",
+      "refresh_token",
+      "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      "user_token",
+      "client_credentials"
+    ],
     "redirect-uris": [
       "https://*.cfapps.us10-001.hana.ondemand.com/**",
       "https://*.hana.ondemand.com/**",
@@ -14,6 +21,10 @@
   },
   "scopes": [
     {
+      "name": "uaa.user",
+      "description": "UAA default user scope"
+    },
+    {
       "name": "$XSAPPNAME.TranslatorUser",
       "description": "User access to PLM Translator"
     },
@@ -23,6 +34,13 @@
     }
   ],
   "role-templates": [
+    {
+      "name": "Token_Exchange",
+      "description": "Role template allowing UAA Token Exchange",
+      "scope-references": [
+        "uaa.user"
+      ]
+    },
     {
       "name": "TranslatorUserRole",
       "description": "Role for translating text and running tests",
@@ -35,22 +53,6 @@
       "description": "Role for full administration and results management",
       "scope-references": [
         "$XSAPPNAME.TranslatorAdmin"
-      ]
-    }
-  ],
-  "role-collections": [
-    {
-      "name": "PLM_Translator_Users",
-      "description": "Business user access for PLM Translator via CIS and SAP Build Work Zone",
-      "role-template-references": [
-        "$XSAPPNAME.TranslatorUserRole"
-      ]
-    },
-    {
-      "name": "PLM_Translator_Admins",
-      "description": "Administrator access for PLM Translator via CIS and SAP Build Work Zone",
-      "role-template-references": [
-        "$XSAPPNAME.TranslatorAdminRole"
       ]
     }
   ]

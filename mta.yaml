@@ -1,6 +1,6 @@
 _schema-version: '3.1'
 ID: plm-translator-capm
-version: 1.0.5
+version: 1.0.10
 description: "PLM Translator on SAP BTP CAP with Google Cloud Translation API and SAP HANA Cloud"
 parameters:
   enable-parallel-deployments: true
@@ -118,7 +118,6 @@ modules:
               TokenServiceKeyName: plm-translator-auth-key
               URL: ~{srv-api/srv-url}
               HTML5.DynamicDestination: true
-              HTML5.ForwardAuthToken: true
 
 resources:
   # ─────────────────────────────────────────────────────────────
