@@ -43,6 +43,93 @@ sap.ui.define([
         return oControl;
     }
 
+    function ensureXLSX() {
+        if (typeof window !== "undefined" && window.XLSX && window.XLSX.utils && typeof window.XLSX.read === "function") {
+            return Promise.resolve(window.XLSX);
+        }
+
+        return new Promise(function (resolve, reject) {
+            function checkXLSX() {
+                if (typeof window !== "undefined" && window.XLSX && window.XLSX.utils) {
+                    resolve(window.XLSX);
+                    return true;
+                }
+                if (typeof sap !== "undefined" && sap.ui && sap.ui.require) {
+                    var oMod = sap.ui.require("xlsx") || sap.ui.require("plm/translator/app/libs/xlsx.full.min");
+                    if (oMod && oMod.utils) {
+                        window.XLSX = oMod;
+                        resolve(oMod);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            if (checkXLSX()) {
+                return;
+            }
+
+            var sScriptId = "plm-xlsx-bundle";
+            var existingScript = document.getElementById(sScriptId);
+            if (existingScript) {
+                var pollCount = 0;
+                var pollInterval = setInterval(function () {
+                    pollCount++;
+                    if (checkXLSX()) {
+                        clearInterval(pollInterval);
+                    } else if (pollCount > 30) {
+                        clearInterval(pollInterval);
+                        reject(new Error("Timeout waiting for Excel library to initialize."));
+                    }
+                }, 100);
+                return;
+            }
+
+            var sUrl = sap.ui.require.toUrl("plm/translator/app/libs/xlsx.full.min.js");
+            var oScript = document.createElement("script");
+            oScript.id = sScriptId;
+            oScript.type = "text/javascript";
+
+            oScript.onload = function () {
+                if (checkXLSX()) {
+                    return;
+                }
+                setTimeout(function () {
+                    if (checkXLSX()) {
+                        return;
+                    }
+                    reject(new Error("Excel library script loaded but XLSX object is unavailable."));
+                }, 50);
+            };
+
+            oScript.onerror = function () {
+                console.warn("[PLM Translator] Local xlsx.full.min.js failed to load, falling back to CDN...");
+                var oCdn = document.createElement("script");
+                oCdn.id = "plm-xlsx-cdn";
+                oCdn.type = "text/javascript";
+                oCdn.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+                oCdn.onload = function () {
+                    if (checkXLSX()) {
+                        return;
+                    }
+                    setTimeout(function () {
+                        if (checkXLSX()) {
+                            return;
+                        }
+                        reject(new Error("Excel library loaded from CDN but XLSX object is unavailable."));
+                    }, 50);
+                };
+                oCdn.onerror = function () {
+                    reject(new Error("Failed to load Excel library from both local resources and CDN."));
+                };
+                document.head.appendChild(oCdn);
+            };
+
+            oScript.src = sUrl;
+            document.head.appendChild(oScript);
+        });
+    }
+
     return ControllerExtension.extend("plm.translator.app.ext.customActions", {
         /**
          * @ui5ignore
@@ -355,6 +442,11 @@ sap.ui.define([
             });
             oModel.setSizeLimit(1000);
 
+            // Preload Excel library immediately so it is ready when the user interacts
+            ensureXLSX().catch(function (e) {
+                console.warn("[MassUpload] Background XLSX preload warning:", e);
+            });
+
             fetch(getBaseUrl("api/getLanguages()"))
                 .then(function (res) { return res.json(); })
                 .then(function (data) {
@@ -427,22 +519,25 @@ sap.ui.define([
                                         icon: "sap-icon://download",
                                         type: "Transparent",
                                         press: function () {
-                                            if (window.XLSX) {
-                                                var wb = window.XLSX.utils.book_new();
+                                            oDialog.setBusy(true);
+                                            ensureXLSX().then(function (XLSX) {
+                                                oDialog.setBusy(false);
+                                                var wb = XLSX.utils.book_new();
                                                 var wsData = [
                                                     ["Phrase Text", "Description"],
                                                     ["Welcome to our application", "Header greeting"],
                                                     ["Save Changes", "Button label"],
                                                     ["Error loading data", "Error alert"]
                                                 ];
-                                                var ws = window.XLSX.utils.aoa_to_sheet(wsData);
+                                                var ws = XLSX.utils.aoa_to_sheet(wsData);
                                                 ws["!cols"] = [{ wch: 35 }, { wch: 25 }];
-                                                window.XLSX.utils.book_append_sheet(wb, ws, "Translations");
-                                                window.XLSX.writeFile(wb, "mass_translation_template.xlsx");
+                                                XLSX.utils.book_append_sheet(wb, ws, "Translations");
+                                                XLSX.writeFile(wb, "mass_translation_template.xlsx");
                                                 MessageToast.show("Template downloaded successfully.");
-                                            } else {
-                                                MessageBox.error("Excel export library is not loaded.");
-                                            }
+                                            }).catch(function (err) {
+                                                oDialog.setBusy(false);
+                                                MessageBox.error("Excel export library is not loaded: " + err.message);
+                                            });
                                         }
                                     })
                                 ]
@@ -481,138 +576,140 @@ sap.ui.define([
                             return;
                         }
 
-                        if (!window.XLSX) {
-                            MessageBox.error("Excel parser library is not loaded.");
-                            return;
-                        }
-
                         oDialog.setBusy(true);
-                        oModel.setProperty("/statusText", "Reading and parsing Excel file in browser...");
+                        oModel.setProperty("/statusText", "Ensuring Excel parser is ready...");
 
-                        var reader = new FileReader();
-                        reader.onload = function (e) {
-                            try {
-                                var data = new Uint8Array(e.target.result);
-                                var workbook = window.XLSX.read(data, { type: "array" });
-                                var sheetName = workbook.SheetNames[0];
-                                if (!sheetName) {
-                                    oDialog.setBusy(false);
-                                    MessageBox.error("Excel file has no sheets.");
-                                    return;
-                                }
+                        ensureXLSX().then(function (XLSX) {
+                            oModel.setProperty("/statusText", "Reading and parsing Excel file in browser...");
 
-                                var worksheet = workbook.Sheets[sheetName];
-                                var rawData = window.XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-                                if (!rawData || rawData.length === 0) {
-                                    oDialog.setBusy(false);
-                                    MessageBox.error("Excel file is empty.");
-                                    return;
-                                }
-
-                                var columns = Object.keys(rawData[0]);
-                                var possibleTextColumns = [
-                                    "Phrase Text", "phrase text", "PHRASE TEXT",
-                                    "text", "Text", "TEXT",
-                                    "content", "Content", "CONTENT",
-                                    "message", "Message", "MESSAGE"
-                                ];
-                                var textCol = null;
-                                for (var i = 0; i < possibleTextColumns.length; i++) {
-                                    if (columns.indexOf(possibleTextColumns[i]) !== -1) {
-                                        textCol = possibleTextColumns[i];
-                                        break;
+                            var reader = new FileReader();
+                            reader.onload = function (e) {
+                                try {
+                                    var data = new Uint8Array(e.target.result);
+                                    var workbook = XLSX.read(data, { type: "array" });
+                                    var sheetName = workbook.SheetNames[0];
+                                    if (!sheetName) {
+                                        oDialog.setBusy(false);
+                                        MessageBox.error("Excel file has no sheets.");
+                                        return;
                                     }
-                                }
-                                if (!textCol) {
-                                    textCol = columns[0];
-                                }
 
-                                var possibleDescColumns = ["description", "Description", "DESCRIPTION", "desc", "Desc", "notes", "Notes"];
-                                var descCol = null;
-                                for (var j = 0; j < possibleDescColumns.length; j++) {
-                                    if (columns.indexOf(possibleDescColumns[j]) !== -1 && possibleDescColumns[j] !== textCol) {
-                                        descCol = possibleDescColumns[j];
-                                        break;
+                                    var worksheet = workbook.Sheets[sheetName];
+                                    var rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                                    if (!rawData || rawData.length === 0) {
+                                        oDialog.setBusy(false);
+                                        MessageBox.error("Excel file is empty.");
+                                        return;
                                     }
-                                }
 
-                                var texts = [];
-                                for (var k = 0; k < rawData.length; k++) {
-                                    var row = rawData[k];
-                                    var src = String(row[textCol] || "").trim();
-                                    var desc = descCol && row[descCol] ? String(row[descCol]).trim() : "";
-                                    if (["nan", "none", ""].indexOf(desc.toLowerCase()) !== -1) {
-                                        desc = "";
+                                    var columns = Object.keys(rawData[0]);
+                                    var possibleTextColumns = [
+                                        "Phrase Text", "phrase text", "PHRASE TEXT",
+                                        "text", "Text", "TEXT",
+                                        "content", "Content", "CONTENT",
+                                        "message", "Message", "MESSAGE"
+                                    ];
+                                    var textCol = null;
+                                    for (var i = 0; i < possibleTextColumns.length; i++) {
+                                        if (columns.indexOf(possibleTextColumns[i]) !== -1) {
+                                            textCol = possibleTextColumns[i];
+                                            break;
+                                        }
                                     }
-                                    if (src && ["nan", "none", ""].indexOf(src.toLowerCase()) === -1) {
-                                        texts.push({
-                                            index: k,
-                                            text: src,
-                                            description: desc
-                                        });
+                                    if (!textCol) {
+                                        textCol = columns[0];
                                     }
-                                }
 
-                                if (texts.length === 0) {
-                                    oDialog.setBusy(false);
-                                    MessageBox.error("No valid text rows found in Excel file.");
-                                    return;
-                                }
+                                    var possibleDescColumns = ["description", "Description", "DESCRIPTION", "desc", "Desc", "notes", "Notes"];
+                                    var descCol = null;
+                                    for (var j = 0; j < possibleDescColumns.length; j++) {
+                                        if (columns.indexOf(possibleDescColumns[j]) !== -1 && possibleDescColumns[j] !== textCol) {
+                                            descCol = possibleDescColumns[j];
+                                            break;
+                                        }
+                                    }
 
-                                oModel.setProperty("/statusText", "Calling native CAP OData action: massTranslate (" + texts.length + " texts x " + aTargets.length + " languages)...");
+                                    var texts = [];
+                                    for (var k = 0; k < rawData.length; k++) {
+                                        var row = rawData[k];
+                                        var src = String(row[textCol] || "").trim();
+                                        var desc = descCol && row[descCol] ? String(row[descCol]).trim() : "";
+                                        if (["nan", "none", ""].indexOf(desc.toLowerCase()) !== -1) {
+                                            desc = "";
+                                        }
+                                        if (src && ["nan", "none", ""].indexOf(src.toLowerCase()) === -1) {
+                                            texts.push({
+                                                index: k,
+                                                text: src,
+                                                description: desc
+                                            });
+                                        }
+                                    }
 
-                                fetch(getBaseUrl("api/massTranslate"), {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json"
-                                    },
-                                    body: JSON.stringify({
-                                        textsJson: JSON.stringify(texts),
-                                        targetLanguages: JSON.stringify(aTargets)
+                                    if (texts.length === 0) {
+                                        oDialog.setBusy(false);
+                                        MessageBox.error("No valid text rows found in Excel file.");
+                                        return;
+                                    }
+
+                                    oModel.setProperty("/statusText", "Calling native CAP OData action: massTranslate (" + texts.length + " texts x " + aTargets.length + " languages)...");
+
+                                    fetch(getBaseUrl("api/massTranslate"), {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json"
+                                        },
+                                        body: JSON.stringify({
+                                            textsJson: JSON.stringify(texts),
+                                            targetLanguages: JSON.stringify(aTargets)
+                                        })
                                     })
-                                })
-                                .then(function (res) { return res.json(); })
-                                .then(function (resData) {
-                                    oDialog.setBusy(false);
-                                    var result = resData && resData.value ? resData.value : resData;
-                                    if (result && result.success) {
-                                        oDialog.close();
-                                        MessageBox.success(
-                                            "Mass Translation Completed!\n\n" +
-                                            "Total Rows Processed: " + (result.statistics ? result.statistics.totalRows : "N/A") + "\n" +
-                                            "Successful: " + (result.statistics ? result.statistics.successful : "N/A") + "\n" +
-                                            "Success Rate: " + (result.statistics ? result.statistics.successRate + "%" : "N/A") + "\n" +
-                                            "Session ID: " + (result.sessionId || "N/A"),
-                                            {
-                                                title: "Batch Translation Summary",
-                                                onClose: function () {
-                                                    if (oView && oView.getModel()) {
-                                                        oView.getModel().refresh();
+                                    .then(function (res) { return res.json(); })
+                                    .then(function (resData) {
+                                        oDialog.setBusy(false);
+                                        var result = resData && resData.value ? resData.value : resData;
+                                        if (result && result.success) {
+                                            oDialog.close();
+                                            MessageBox.success(
+                                                "Mass Translation Completed!\n\n" +
+                                                "Total Rows Processed: " + (result.statistics ? result.statistics.totalRows : "N/A") + "\n" +
+                                                "Successful: " + (result.statistics ? result.statistics.successful : "N/A") + "\n" +
+                                                "Success Rate: " + (result.statistics ? result.statistics.successRate + "%" : "N/A") + "\n" +
+                                                "Session ID: " + (result.sessionId || "N/A"),
+                                                {
+                                                    title: "Batch Translation Summary",
+                                                    onClose: function () {
+                                                        if (oView && oView.getModel()) {
+                                                            oView.getModel().refresh();
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        );
-                                    } else {
-                                        MessageBox.error((result && result.error) || "Batch translation failed.");
-                                    }
-                                })
-                                .catch(function (fetchErr) {
+                                            );
+                                        } else {
+                                            MessageBox.error((result && result.error) || "Batch translation failed.");
+                                        }
+                                    })
+                                    .catch(function (fetchErr) {
+                                        oDialog.setBusy(false);
+                                        MessageBox.error("Request error: " + fetchErr.message);
+                                    });
+
+                                } catch (parseErr) {
                                     oDialog.setBusy(false);
-                                    MessageBox.error("Request error: " + fetchErr.message);
-                                });
+                                    MessageBox.error("Failed to parse Excel file: " + parseErr.message);
+                                }
+                            };
 
-                            } catch (parseErr) {
+                            reader.onerror = function (readErr) {
                                 oDialog.setBusy(false);
-                                MessageBox.error("Failed to parse Excel file: " + parseErr.message);
-                            }
-                        };
+                                MessageBox.error("File reading error: " + readErr.message);
+                            };
 
-                        reader.onerror = function (readErr) {
+                            reader.readAsArrayBuffer(oFile);
+                        }).catch(function (err) {
                             oDialog.setBusy(false);
-                            MessageBox.error("File reading error: " + readErr.message);
-                        };
-
-                        reader.readAsArrayBuffer(oFile);
+                            MessageBox.error("Excel parser library is not loaded: " + err.message);
+                        });
                     }
                 }),
                 endButton: new Button({

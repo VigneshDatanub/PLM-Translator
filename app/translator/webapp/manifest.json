@@ -6,7 +6,7 @@
         "title": "PLM Translation Workbench",
         "description": "PLM Translation Tool powered by Google Cloud Translation API and SAP Fiori Elements",
         "applicationVersion": {
-            "version": "1.0.0"
+            "version": "1.0.7"
         },
         "crossNavigation": {
             "inbounds": {
@@ -54,6 +54,13 @@
             "type": "XML",
             "async": true,
             "id": "appRootView"
+        },
+        "resources": {
+            "js": [
+                {
+                    "uri": "libs/xlsx.full.min.js"
+                }
+            ]
         },
         "dependencies": {
             "minUI5Version": "1.120.0",
