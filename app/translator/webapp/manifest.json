@@ -25,7 +25,7 @@
         },
         "dataSources": {
             "mainService": {
-                "uri": "/api/",
+                "uri": "api/",
                 "type": "OData",
                 "settings": {
                     "odataVersion": "4.0"
@@ -49,12 +49,6 @@
         }
     },
     "sap.ui5": {
-        "rootView": {
-            "viewName": "sap.fe.templates.RootContainer.view.Fcl",
-            "type": "XML",
-            "async": true,
-            "id": "appRootView"
-        },
         "resources": {
             "js": [
                 {
@@ -101,11 +95,8 @@
         },
         "routing": {
             "config": {
-                "routerClass": "sap.f.routing.Router",
-                "flexibleColumnLayout": {
-                    "defaultTwoColumnLayoutType": "TwoColumnsMidExpanded",
-                    "defaultThreeColumnLayoutType": "ThreeColumnsMidExpanded"
-                },
+                "routerClass": "sap.m.routing.Router",
+                "controlAggregation": "pages",
                 "bypassed": {
                     "target": "TestResultsList"
                 }
@@ -114,24 +105,17 @@
                 {
                     "pattern": ":?query:",
                     "name": "TestResultsList",
-                    "target": [
-                        "TestResultsList"
-                    ]
+                    "target": "TestResultsList"
                 },
                 {
                     "pattern": "PLMTranslator-manage:?query:",
                     "name": "TestResultsListFLP",
-                    "target": [
-                        "TestResultsList"
-                    ]
+                    "target": "TestResultsList"
                 },
                 {
                     "pattern": "TestResults({key}):?query:",
                     "name": "TestResultsObjectPage",
-                    "target": [
-                        "TestResultsList",
-                        "TestResultsObjectPage"
-                    ]
+                    "target": "TestResultsObjectPage"
                 }
             ],
             "targets": {
@@ -139,7 +123,7 @@
                     "type": "Component",
                     "id": "TestResultsList",
                     "name": "sap.fe.templates.ListReport",
-                    "controlAggregation": "beginColumnPages",
+                    "controlAggregation": "pages",
                     "contextPattern": "",
                     "options": {
                         "settings": {
@@ -193,7 +177,7 @@
                     "type": "Component",
                     "id": "TestResultsObjectPage",
                     "name": "sap.fe.templates.ObjectPage",
-                    "controlAggregation": "midColumnPages",
+                    "controlAggregation": "pages",
                     "contextPattern": "/TestResults({key})",
                     "options": {
                         "settings": {
