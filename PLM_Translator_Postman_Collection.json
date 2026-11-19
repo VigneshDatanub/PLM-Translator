@@ -1,0 +1,513 @@
+{
+  "info": {
+    "_postman_id": "c1f7a28e-49b5-4b12-9844-3d779fbf9201",
+    "name": "PLM Translator - SAP CAP OData V4 APIs",
+    "description": "Postman API Collection for testing the PLM Translator SAP CAPM backend.\n\n### Authentication\nUses HTTP Basic Authentication for local testing:\n- **Admin**: `alice` / `alice` (Role: TranslatorAdmin)\n- **Standard User**: `bob` / `bob` (Role: TranslatorUser)\n\n### Base URL\n`{{baseUrl}}` default is `http://localhost:4004/api`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4004/api",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "alice",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "alice",
+      "type": "string"
+    },
+    {
+      "key": "testResultId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "username",
+        "value": "{{username}}",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "{{password}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Service Metadata & Discovery",
+      "item": [
+        {
+          "name": "Service Document",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Returns the OData V4 Service Document listing available entity sets and function imports."
+          }
+        },
+        {
+          "name": "Service Metadata ($metadata)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/$metadata",
+              "host": ["{{baseUrl}}"],
+              "path": ["$metadata"]
+            },
+            "description": "Fetches the full OData V4 EDMX metadata schema defining all entity types, properties, actions, and annotations."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Translation Actions & Utilities",
+      "item": [
+        {
+          "name": "Quick Translate (No Save)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Hello, how are you today?\",\n  \"targetLanguage\": \"de\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/translate",
+              "host": ["{{baseUrl}}"],
+              "path": ["translate"]
+            },
+            "description": "Calls Google Cloud Translation API to translate input text to target language without storing in the database."
+          }
+        },
+        {
+          "name": "Single Translate (Evaluated & Persisted)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.ID) {",
+                  "    pm.collectionVariables.set('testResultId', jsonData.ID);",
+                  "    console.log('Saved testResultId: ' + jsonData.ID);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceText\": \"Welcome to our SAP enterprise solution\",\n  \"targetLanguage\": \"es\",\n  \"sourceLanguage\": \"en\",\n  \"translatedText\": \"\",\n  \"outcome\": \"Success\",\n  \"accuracy\": 95,\n  \"observation\": \"Generated and evaluated via Postman test suite\",\n  \"sessionId\": \"postman_session_001\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/singleTranslate",
+              "host": ["{{baseUrl}}"],
+              "path": ["singleTranslate"]
+            },
+            "description": "Translates text via Google Cloud (if translatedText is blank), computes accuracy, creates an active record in TestResults, and logs an audit record in TestResultTransactions."
+          }
+        },
+        {
+          "name": "Mass Translate (Batch Run)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.sessionId) {",
+                  "    pm.collectionVariables.set('sessionId', jsonData.sessionId);",
+                  "    console.log('Saved sessionId: ' + jsonData.sessionId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"textsJson\": \"[{\\\"index\\\":0,\\\"text\\\":\\\"Hello and welcome\\\",\\\"description\\\":\\\"Greeting text\\\"},{\\\"index\\\":1,\\\"text\\\":\\\"Thank you for your assistance\\\",\\\"description\\\":\\\"Courtesy phrase\\\"}]\",\n  \"targetLanguages\": \"[\\\"de\\\",\\\"fr\\\",\\\"es\\\"]\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/massTranslate",
+              "host": ["{{baseUrl}}"],
+              "path": ["massTranslate"]
+            },
+            "description": "Executes batch translation for multiple rows into multiple target languages. Inserts records into TestResults, TestResultTransactions, and creates a TranslationSessions summary header."
+          }
+        },
+        {
+          "name": "Get Supported Languages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/getLanguages()",
+              "host": ["{{baseUrl}}"],
+              "path": ["getLanguages()"]
+            },
+            "description": "Returns all supported translation languages dynamically from Google Cloud API (with database fallback)."
+          }
+        },
+        {
+          "name": "Get User Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/getUserInfo()",
+              "host": ["{{baseUrl}}"],
+              "path": ["getUserInfo()"]
+            },
+            "description": "Returns the authenticated user details, identity, email, and role authorization checks (isAdmin, isUser)."
+          }
+        },
+        {
+          "name": "Export Results Instructions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/exportResults()",
+              "host": ["{{baseUrl}}"],
+              "path": ["exportResults()"]
+            }
+          }
+        },
+        {
+          "name": "Download Template Instructions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/downloadTemplate()",
+              "host": ["{{baseUrl}}"],
+              "path": ["downloadTemplate()"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. TestResults Entity (CRUD & Queries)",
+      "item": [
+        {
+          "name": "List Test Results (Paged)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/TestResults?$top=20&$skip=0&$orderby=createdAt desc&$count=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["TestResults"],
+              "query": [
+                {
+                  "key": "$top",
+                  "value": "20"
+                },
+                {
+                  "key": "$skip",
+                  "value": "0"
+                },
+                {
+                  "key": "$orderby",
+                  "value": "createdAt desc"
+                },
+                {
+                  "key": "$count",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Fetches paged test results ordered by creation timestamp, including inline total row count."
+          }
+        },
+        {
+          "name": "Filter Test Results by Outcome",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/TestResults?$filter=outcome eq 'Success' and IsActiveEntity eq true",
+              "host": ["{{baseUrl}}"],
+              "path": ["TestResults"],
+              "query": [
+                {
+                  "key": "$filter",
+                  "value": "outcome eq 'Success' and IsActiveEntity eq true"
+                }
+              ]
+            },
+            "description": "Demonstrates OData V4 filtering by outcome and active entity status."
+          }
+        },
+        {
+          "name": "Get Single Test Result (by ID)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/TestResults(ID={{testResultId}},IsActiveEntity=true)?$expand=transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["TestResults(ID={{testResultId}},IsActiveEntity=true)"],
+              "query": [
+                {
+                  "key": "$expand",
+                  "value": "transactions"
+                }
+              ]
+            },
+            "description": "Fetches a specific TestResult by ID with its audit transactions expanded."
+          }
+        },
+        {
+          "name": "Create Test Result (Direct OData POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.ID) {",
+                  "    pm.collectionVariables.set('testResultId', jsonData.ID);",
+                  "    console.log('Created testResultId: ' + jsonData.ID);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"Success\",\n  \"accuracy\": 98.5,\n  \"observation\": \"Manual OData V4 entity creation\",\n  \"textToTranslate\": \"System error occurred during sync\",\n  \"translatedText\": \"Systemfehler bei der Synchronisation aufgetreten\",\n  \"sourceLanguage\": \"English\",\n  \"targetLanguage\": \"German\",\n  \"sessionId\": \"direct_odata_session\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/TestResults",
+              "host": ["{{baseUrl}}"],
+              "path": ["TestResults"]
+            },
+            "description": "Directly creates an active TestResult entity."
+          }
+        },
+        {
+          "name": "Update Evaluation on Test Result (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"Partial\",\n  \"accuracy\": 82.0,\n  \"observation\": \"Re-evaluated translation quality: phrasing needs minor adjustment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/TestResults(ID={{testResultId}},IsActiveEntity=true)",
+              "host": ["{{baseUrl}}"],
+              "path": ["TestResults(ID={{testResultId}},IsActiveEntity=true)"]
+            },
+            "description": "Updates evaluation fields (outcome, accuracy, observation). The CAP backend validates inputs, protects immutable fields, and automatically records the change into TestResultTransactions."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Audit Trail & Sessions",
+      "item": [
+        {
+          "name": "List All Audit Transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/TestResultTransactions?$top=20&$orderby=createdAt desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["TestResultTransactions"],
+              "query": [
+                {
+                  "key": "$top",
+                  "value": "20"
+                },
+                {
+                  "key": "$orderby",
+                  "value": "createdAt desc"
+                }
+              ]
+            },
+            "description": "Returns audit trail history records showing user actions, previous and updated outcomes, and timestamps."
+          }
+        },
+        {
+          "name": "Get Audit Transactions for a Specific Result",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/TestResultTransactions?$filter=result_ID eq {{testResultId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["TestResultTransactions"],
+              "query": [
+                {
+                  "key": "$filter",
+                  "value": "result_ID eq {{testResultId}}"
+                }
+              ]
+            },
+            "description": "Filters audit log for a specific TestResult record."
+          }
+        },
+        {
+          "name": "List Translation Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/TranslationSessions?$top=10&$orderby=createdAt desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["TranslationSessions"],
+              "query": [
+                {
+                  "key": "$top",
+                  "value": "10"
+                },
+                {
+                  "key": "$orderby",
+                  "value": "createdAt desc"
+                }
+              ]
+            },
+            "description": "Lists mass translation batch run summaries with total rows, success count, failure count, and success rate."
+          }
+        },
+        {
+          "name": "List Languages CodeList",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/Languages?$top=50&$select=code,name",
+              "host": ["{{baseUrl}}"],
+              "path": ["Languages"],
+              "query": [
+                {
+                  "key": "$top",
+                  "value": "50"
+                },
+                {
+                  "key": "$select",
+                  "value": "code,name"
+                }
+              ]
+            },
+            "description": "Retrieves the standard Languages CodeList entity set used for Fiori Elements value helps."
+          }
+        }
+      ]
+    }
+  ]
+}
